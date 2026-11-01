@@ -2,8 +2,8 @@ import { paymentsReady, type Config } from "./server";
 export function publicConfig(c: Config) {
   const accounts = !!(
     c.SUPABASE_URL &&
-    c.SUPABASE_ANON_KEY &&
-    c.SUPABASE_SERVICE_ROLE_KEY
+    (c.SUPABASE_PUBLISHABLE_KEY || c.SUPABASE_ANON_KEY) &&
+    (c.SUPABASE_SECRET_KEY || c.SUPABASE_SERVICE_ROLE_KEY)
   );
   return {
     accounts,

@@ -4,7 +4,11 @@ Projet désigné : [`ltommtumsvvqxdknpkfd`](https://supabase.com/dashboard/proje
 
 Le dépôt contient les six migrations, les buckets, les politiques RLS et un déploiement GitHub manuel. La présence de ces fichiers ne signifie pas que la base distante est déjà configurée.
 
-## 1. Ajouter les deux accès de déploiement
+## Installation avec le Dashboard connecté
+
+La méthode [sans nouveau jeton](SUPABASE-DASHBOARD.md) regroupe les six migrations dans un seul fichier SQL, puis décrit les réglages Auth à appliquer.
+
+## 1. Ajouter les deux accès de déploiement (méthode GitHub Actions)
 
 Ouvrir [GitHub → Settings → Secrets and variables → Actions](https://github.com/mgminformatique/MarketPaperclip/settings/secrets/actions), puis **New repository secret** pour chacun :
 
@@ -30,8 +34,8 @@ Dans les variables serveur de l’hébergement du site, configurer :
 | Variable | Valeur |
 | --- | --- |
 | `SUPABASE_URL` | `https://ltommtumsvvqxdknpkfd.supabase.co` |
-| `SUPABASE_ANON_KEY` | Clé publishable ou anon du projet |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clé secret ou service_role du projet; serveur uniquement |
+| `SUPABASE_PUBLISHABLE_KEY` | Publishable key du projet |
+| `SUPABASE_SECRET_KEY` | Secret key du projet; serveur uniquement |
 | `SITE_URL` | `https://marketpaperclip.murphylexus.chatgpt.site` pendant la présentation privée |
 | `PAYMENTS_ENABLED` | `false` |
 | `LAUNCH_READY` | `false` |

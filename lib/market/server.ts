@@ -7,6 +7,9 @@ import {
 import Stripe from "stripe";
 export type Config = {
   SUPABASE_URL?: string;
+  SUPABASE_PUBLISHABLE_KEY?: string;
+  SUPABASE_SECRET_KEY?: string;
+  // Legacy environment names remain supported for existing deployments.
   SUPABASE_ANON_KEY?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
   STRIPE_SECRET_KEY?: string;
@@ -18,6 +21,10 @@ export type Config = {
   STRIPE_TAX_ENABLED?: string;
   LAUNCH_READY?: string;
 };
+const publishableKey = (c: Config) =>
+  c.SUPABASE_PUBLISHABLE_KEY || c.SUPABASE_ANON_KEY;
+const serverSecretKey = (c: Config) =>
+  c.SUPABASE_SECRET_KEY || c.SUPABASE_SERVICE_ROLE_KEY;
 export class HttpError extends Error {
   constructor(
     public status: number,
@@ -30,8 +37,8 @@ export class HttpError extends Error {
 export function ready(c: Config) {
   return !!(
     c.SUPABASE_URL &&
-    c.SUPABASE_ANON_KEY &&
-    c.SUPABASE_SERVICE_ROLE_KEY
+    publishableKey(c) &&
+    serverSecretKey(c)
   );
 }
 export function paymentsReady(c: Config) {
@@ -56,14 +63,14 @@ export function admin(c: Config) {
       "Les comptes ouvriront bientôt. Revenez au lancement du marketplace.",
       "setup_required",
     );
-  return createClient(c.SUPABASE_URL!, c.SUPABASE_SERVICE_ROLE_KEY!, {
+  return createClient(c.SUPABASE_URL!, serverSecretKey(c)!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 export function context(request: Request, c: Config) {
   const cookies: string[] = [];
   const client = ready(c)
-    ? createServerClient(c.SUPABASE_URL!, c.SUPABASE_ANON_KEY!, {
+    ? createServerClient(c.SUPABASE_URL!, publishableKey(c)!, {
         cookieOptions: {
           httpOnly: true,
           secure: new URL(request.url).protocol === "https:",

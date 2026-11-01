@@ -7,8 +7,8 @@ Le code est livré; il faut un projet Supabase dédié, un compte Stripe avec Co
 | Variable serveur            | Usage                                                                                                                      |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `SUPABASE_URL`              | URL du projet Supabase                                                                                                     |
-| `SUPABASE_ANON_KEY`         | Clé publique/publishable du projet, utilisée ici seulement côté serveur                                                    |
-| `SUPABASE_SERVICE_ROLE_KEY` | Clé service/secret pour les opérations serveur autorisées                                                                  |
+| `SUPABASE_PUBLISHABLE_KEY`  | Clé « Publishable key » (`sb_publishable_...`) de **Settings → API Keys**                                                   |
+| `SUPABASE_SECRET_KEY`       | Clé « Secret key » (`sb_secret_...`) de **Settings → API Keys**; serveur uniquement                                          |
 | `STRIPE_SECRET_KEY`         | Clé Stripe TEST pendant la recette; LIVE seulement après validation                                                        |
 | `STRIPE_WEBHOOK_SECRET`     | Secret de signature de l’endpoint de webhook, même environnement Stripe                                                    |
 | `SITE_URL`                  | Origine HTTPS exacte, sans chemin, par ex. `https://marketpaperclip.com`                                                   |
