@@ -1,0 +1,2 @@
+# Local CLI identity. The production reference is pinned in the deployment workflow.
+project_id = "marketpaperclip"

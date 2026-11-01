@@ -1,6 +1,6 @@
 # MarketPaperclip
 
-Marketplace indépendant d’agents et de bundles d’agents, conçu pour MGM Informatique. Interface française responsive, prix en CAD, backend Supabase et paiements Stripe Connect.
+Marketplace indépendant d’agents et de bundles d’agents, conçu pour MGM Informatique. Interface responsive française et anglaise, backend Supabase et paiements Stripe Connect. Les prix du catalogue sont temporairement masqués.
 
 ## État livré
 
@@ -32,6 +32,8 @@ Pour le développement local, copiez `.env.example` dans `.dev.vars`, renseignez
 Le projet utilise React 19, TypeScript, Vinext/Vite et Cloudflare Workers. Le SDK Supabase reste côté serveur; les sessions sont transmises par cookies HttpOnly. Les polices Manrope et DM Sans sont auto-hébergées via Fontsource.
 
 ## Mise en service
+
+Le projet Supabase désigné est `ltommtumsvvqxdknpkfd`. Le déploiement des six migrations et de la configuration Auth est préparé dans le workflow **Deploy Supabase**. Suivre [docs/SUPABASE-SETUP.md](docs/SUPABASE-SETUP.md) pour ajouter les accès sécurisés, exécuter le workflow et relier les variables serveur du site. Ce workflow ne déploie pas automatiquement le site ni ses secrets.
 
 Lisez [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), puis [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md). Les scripts SQL à appliquer dans l’ordre sont dans `supabase/migrations/`.
 

@@ -46,3 +46,7 @@ yarn-error.log*
 
 # Document only variable names and placeholders.
 !.env.example
+
+# Supabase CLI local project state
+/supabase/.temp/
+/supabase/.branches/
