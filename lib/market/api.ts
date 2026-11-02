@@ -25,7 +25,7 @@ import {
 } from "./server";
 import { handleWebhook } from "./webhook";
 const publicFields =
-  "id,seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,currency,license,tags,requirements,setup,agent_count,status,created_at,cover_url,profiles(display_name,username,bio)";
+  "id,seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,currency,license,tags,requirements,setup,agent_count,status,created_at,cover_url,profiles!products_seller_id_fkey(display_name,username,bio)";
 const orderFields =
   "id,product_id,product_title,product_version,license,amount_cents,total_cents,tax_cents,fee_cents,currency,status,created_at,paid_at";
 const credentials = z.object({
@@ -106,7 +106,7 @@ export async function marketApi(req: Request, c: Config) {
       if (!data) throw new HttpError(404, "Agent introuvable.");
       const { data: reviews } = await ctx
         .client!.from("reviews")
-        .select("rating,body,created_at,profiles(display_name,username)")
+        .select("rating,body,created_at,profiles!reviews_user_id_fkey(display_name,username)")
         .eq("product_id", data.id)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -131,7 +131,7 @@ export async function marketApi(req: Request, c: Config) {
       );
       const { data, count, error } = await ctx
         .client!.from("profiles")
-        .select("id,display_name,username,bio,website,products!inner(id)", {
+        .select("id,display_name,username,bio,website,products!products_seller_id_fkey!inner(id)", {
           count: "exact",
         })
         .eq("products.status", "published")
@@ -909,7 +909,7 @@ export async function marketApi(req: Request, c: Config) {
           db
             .from("products")
             .select(
-              "*,profiles(display_name,username),product_files(original_name,size_bytes,sha256)",
+              "*,profiles!products_seller_id_fkey(display_name,username),product_files(original_name,size_bytes,sha256)",
             )
             .eq("status", "pending")
             .limit(100),
