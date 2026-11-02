@@ -8,7 +8,9 @@ Projet prévu : **ltommtumsvvqxdknpkfd**. Cette méthode utilise le Dashboard co
 2. Ouvrir [le SQL Editor du projet](https://supabase.com/dashboard/project/ltommtumsvvqxdknpkfd/sql/new).
 3. Coller le contenu et cliquer **Run**, avec le rôle **postgres**.
 
-Le résultat attendu indique **6 migrations** et **12 tables avec RLS**. Le fichier contient exactement les six migrations du dépôt, enregistrées dans l'historique compatible avec la CLI. Leur installation est regroupée dans une transaction : si une étape échoue, aucune de ces migrations n'est validée. Une base qui contient déjà des tables applicatives ou un historique de migrations est refusée, sans effacement.
+Le résultat attendu est **Success. No rows returned.** Le fichier exécute une seule commande `DO` qui installe les **6 migrations** et les **12 tables avec RLS**, puis vérifie les protections. Il ne retourne plus de résultat intermédiaire `pg_advisory_xact_lock`. Les migrations sont enregistrées dans l'historique compatible avec la CLI. Toute la commande est atomique et PostgreSQL la valide automatiquement à la fin : si une étape échoue, aucune de ces migrations n'est validée. Une base qui contient déjà des tables applicatives ou un historique de migrations est refusée, sans effacement.
+
+Si une ancienne copie est déjà ouverte dans le SQL Editor, la remplacer entièrement par la nouvelle version du fichier avant de cliquer **Run**.
 
 Le script est réservé à une première installation. Après réussite, les mises à jour passent par les migrations normales. Ne pas relancer l'installation complète pour mettre à jour le projet.
 

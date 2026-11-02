@@ -6,7 +6,11 @@
 -- An existing application schema stops installation; nothing is reset.
 -- Auth URL/email settings are a separate Dashboard step (see docs/SUPABASE-DASHBOARD.md).
 
-begin;
+-- One top-level command: PostgreSQL commits it automatically only after every check succeeds.
+-- Expected Dashboard result: Success. No rows returned.
+do $marketpaperclip_install$
+begin
+  execute $marketpaperclip_payload$
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
 select pg_advisory_xact_lock(hashtext('marketpaperclip:initial-install'));
@@ -589,9 +593,7 @@ begin
 end;
 $marketpaperclip_verify$;
 notify pgrst, 'reload schema';
-commit;
-
-select 'MarketPaperclip: database installation complete' as status,
-       (select count(*) from supabase_migrations.schema_migrations) as migrations,
-       (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-        where n.nspname = 'public' and c.relname in ('profiles', 'market_admins', 'seller_accounts', 'products', 'product_files', 'orders', 'favorites', 'reviews', 'support_requests', 'stripe_events', 'audit_log', 'rate_limits') and c.relrowsecurity) as tables_with_rls;
+$marketpaperclip_payload$;
+  raise notice 'MarketPaperclip: installation complete; 6 migrations, 12 tables with RLS.';
+end;
+$marketpaperclip_install$;

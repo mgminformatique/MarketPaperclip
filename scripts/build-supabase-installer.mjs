@@ -27,7 +27,7 @@ export async function buildInstaller(migrationDirectory = resolve(root, "supabas
     migrations.push(`-- ${name}\n${body}\n\ninsert into supabase_migrations.schema_migrations(version, name, statements)\nvalues (${sqlString(version)}, ${sqlString(migrationName)}, array[${delimiter}${body}${delimiter}]);`);
   }
   const tableList = tables.map(sqlString).join(", ");
-  return `-- MarketPaperclip: initial database installation.
+  const sql = `-- MarketPaperclip: initial database installation.
 -- TARGET: ltommtumsvvqxdknpkfd ONLY.
 -- Open https://supabase.com/dashboard/project/ltommtumsvvqxdknpkfd/sql/new
 -- Run this entire file as postgres. It contains no credentials.
@@ -98,6 +98,26 @@ select 'MarketPaperclip: database installation complete' as status,
        (select count(*) from supabase_migrations.schema_migrations) as migrations,
        (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
         where n.nspname = 'public' and c.relname in (${tableList}) and c.relrowsecurity) as tables_with_rls;
+`;
+  // Some dashboard/query adapters display the first SELECT result in a batch.
+  // Send one atomic statement so no intermediate lock result can look like
+  // a successful installation and no explicit transaction can remain open.
+  const wrapped = sql.match(/^([\s\S]*?)\nbegin;\n([\s\S]*)\ncommit;\n\nselect 'MarketPaperclip: database installation complete'[\s\S]*$/);
+  if (!wrapped) throw new Error("Installer transaction boundaries changed; review the wrapper.");
+  const payloadTag = "$marketpaperclip_payload$";
+  const blockTag = "$marketpaperclip_install$";
+  if (sql.includes(payloadTag) || sql.includes(blockTag)) throw new Error("Installer delimiter collision.");
+  return `${wrapped[1]}
+-- One top-level command: PostgreSQL commits it automatically only after every check succeeds.
+-- Expected Dashboard result: Success. No rows returned.
+do ${blockTag}
+begin
+  execute ${payloadTag}
+${wrapped[2]}
+${payloadTag};
+  raise notice 'MarketPaperclip: installation complete; 6 migrations, 12 tables with RLS.';
+end;
+${blockTag};
 `;
 }
 
