@@ -33,6 +33,7 @@ before(async () => {
     "005_seller_statistics.sql",
     "006_product_covers.sql",
     "007_market_exchange.sql",
+    "008_profile_posts.sql",
   ])
     await db.exec(
       await readFile(
@@ -376,4 +377,66 @@ test("Seller totals are aggregated beyond a single page of transactions", async 
     () => asUser(stranger, `select market_seller_stats('${seller}')`),
     /permission denied/,
   );
+});
+async function asAnon(sql) {
+  try {
+    await db.exec("set role anon; select set_config('request.jwt.claim.sub','',false);");
+    return await db.query(sql);
+  } finally {
+    await db.exec("reset role");
+  }
+}
+test("Profile pictures and posts are public to read and written only by the server", async () => {
+  await query(
+    "update profiles set avatar_url='https://cdn.test/a.jpg', banner_url='https://cdn.test/b.jpg' where id=$1",
+    [seller],
+  );
+  const post = (
+    await query(
+      "insert into posts(author_id,body,product_id,images) values($1,'Nouvel agent en vente',$2,$3) returning id",
+      [seller, product, ["https://cdn.test/p.jpg"]],
+    )
+  ).rows[0].id;
+  const visitor = await asAnon(
+    `select p.body, p.images, pr.avatar_url, pr.banner_url from posts p join profiles pr on pr.id=p.author_id where p.id='${post}'`,
+  );
+  assert.equal(visitor.rows[0].body, "Nouvel agent en vente");
+  assert.deepEqual(visitor.rows[0].images, ["https://cdn.test/p.jpg"]);
+  assert.equal(visitor.rows[0].avatar_url, "https://cdn.test/a.jpg");
+  // Browsers cannot post, edit or delete, even as the author.
+  for (const sql of [
+    `insert into posts(author_id,body) values('${seller}','spam')`,
+    `update posts set body='edited' where id='${post}'`,
+    `delete from posts where id='${post}'`,
+    `update profiles set avatar_url='https://evil.test/x.svg' where id='${seller}'`,
+    `update profiles set banner_url=null where id='${seller}'`,
+  ])
+    await assert.rejects(() => asUser(seller, sql), /permission denied/, sql);
+  await assert.rejects(
+    () => asAnon(`insert into posts(author_id,body) values('${seller}','spam')`),
+    /permission denied/,
+  );
+  assert.equal(
+    (await query("select avatar_url from profiles where id=$1", [seller])).rows[0].avatar_url,
+    "https://cdn.test/a.jpg",
+  );
+  // Limits hold even for server writes.
+  await assert.rejects(
+    () =>
+      query("insert into posts(author_id,images) values($1,$2)", [
+        seller,
+        ["1", "2", "3", "4", "5"],
+      ]),
+    /check/,
+  );
+  await assert.rejects(
+    () => query("insert into posts(author_id,body) values($1,$2)", [seller, "x".repeat(2001)]),
+    /check/,
+  );
+  const bucket = (
+    await query("select public, file_size_limit, allowed_mime_types from storage.buckets where id='profile-media'")
+  ).rows[0];
+  assert.equal(bucket.public, true);
+  assert.equal(Number(bucket.file_size_limit), 3145728);
+  assert.ok(!bucket.allowed_mime_types.includes("image/svg+xml"));
 });

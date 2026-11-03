@@ -4,7 +4,7 @@
 import { cache } from "react";
 import { marketApi } from "./api";
 import { marketEnv } from "./runtime";
-import type { Product } from "./model";
+import type { Post, Product } from "./model";
 import { seoRoute } from "../seo";
 
 const internal = "https://marketpaperclip.internal/api/";
@@ -48,6 +48,8 @@ export type InitialData = {
     products: Product[];
     stats?: unknown;
     activity?: unknown[];
+    posts?: Post[];
+    more_posts?: boolean;
     demo?: boolean;
   } | null;
   catalog?: { products: Product[]; total: number; demo?: boolean } | null;

@@ -272,6 +272,12 @@ export function routeMetadata(
     );
     const meta = base({ title, description }, route.path);
     if (meta.openGraph) meta.openGraph = { ...meta.openGraph, type: "profile" };
+    // The creator's own banner (or photo) represents the profile when shared.
+    const picture = text(c.banner_url) || text(c.avatar_url);
+    if (picture.startsWith("https://") && meta.openGraph && meta.twitter) {
+      meta.openGraph.images = [{ url: picture, alt: c.display_name }, image];
+      meta.twitter.images = [picture];
+    }
     return meta;
   }
   const notIndexed = { index: false, follow: route.kind === "private" ? false : true };
@@ -431,6 +437,7 @@ export function profileLd(origin: string, data: CreatorData): JsonLd {
       alternateName: "@" + c.username,
       identifier: c.username,
       description: text(c.bio) || undefined,
+      image: text(c.avatar_url).startsWith("https://") ? text(c.avatar_url) : undefined,
       url,
       sameAs: website.startsWith("https://") ? [website] : undefined,
     },

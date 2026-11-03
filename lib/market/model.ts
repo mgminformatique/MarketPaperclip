@@ -94,8 +94,36 @@ export type Product = {
   art?: string;
   cover_url?: string | null;
   demo?: boolean;
-  profiles?: { display_name: string; username: string; bio?: string };
+  profiles?: {
+    display_name: string;
+    username: string;
+    bio?: string;
+    avatar_url?: string | null;
+  };
 };
+// A listing as shown inside a post (public columns only).
+export type PostProduct = Pick<
+  Product,
+  | "id"
+  | "slug"
+  | "title"
+  | "tagline"
+  | "kind"
+  | "agent_count"
+  | "engine"
+  | "price_cents"
+  | "currency"
+  | "cover_url"
+>;
+export type Post = {
+  id: string;
+  author_id: string;
+  body: string;
+  images: string[];
+  created_at: string;
+  product: PostProduct | null;
+};
+export const POST_IMAGE_LIMIT = 4;
 export function platformFee(amount: number, bps: number) {
   if (
     !Number.isSafeInteger(amount) ||
@@ -123,6 +151,13 @@ export function priceInCents(value: string): number | null {
     : null;
 }
 export const uuid = z.string().uuid();
+export const postInput = z
+  .object({
+    body: z.string().trim().max(2000).default(""),
+    product_id: uuid.nullable().default(null),
+    images: z.array(z.string().max(500)).max(POST_IMAGE_LIMIT).default([]),
+  })
+  .strict();
 export function safeReturn(value: unknown) {
   if (
     typeof value !== "string" ||

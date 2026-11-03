@@ -4,6 +4,7 @@ import { demoProducts } from "./demo";
 import {
   productInput,
   profileInput,
+  postInput,
   platformFee,
   uuid,
   safeReturn,
@@ -27,7 +28,11 @@ import {
 import { handleWebhook } from "./webhook";
 import { emptyOverview, marketRange } from "./market";
 const publicFields =
-  "id,seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,currency,license,tags,requirements,setup,agent_count,status,created_at,listed_at,cover_url,profiles!products_seller_id_fkey(display_name,username,bio)";
+  "id,seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,currency,license,tags,requirements,setup,agent_count,status,created_at,listed_at,cover_url,profiles!products_seller_id_fkey(display_name,username,bio,avatar_url)";
+// Posts on a public profile, with the presented listing when it is visible.
+const postFields =
+  "id,author_id,body,images,created_at,product:products(id,slug,title,tagline,kind,agent_count,engine,price_cents,currency,cover_url)";
+const POSTS_PAGE = 10;
 const orderFields =
   "id,product_id,product_title,product_version,license,amount_cents,total_cents,tax_cents,fee_cents,currency,status,created_at,paid_at,offer_id";
 // Links sent by the Send Email hook (supabase/functions/send-email) and the
@@ -91,6 +96,121 @@ async function sha256(bytes: ArrayBuffer) {
     new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
     (v) => v.toString(16).padStart(2, "0"),
   ).join("");
+}
+// Public images are recognized by their signature, never by the declared
+// type: JPEG, PNG and WebP only (an SVG can carry scripts).
+async function readImage(req: Request) {
+  const form = await req.formData().catch(() => {
+    throw new HttpError(400, "Requête invalide.");
+  });
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size < 12 || file.size > 3145728)
+    throw new HttpError(
+      400,
+      "Choisissez une image JPG, PNG ou WebP de 3 Mo maximum.",
+    );
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const ascii = (from: number, to: number) =>
+    new TextDecoder().decode(bytes.slice(from, to));
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
+    return { bytes, ext: "jpg", mime: "image/jpeg" };
+  if (
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  )
+    return { bytes, ext: "png", mime: "image/png" };
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP")
+    return { bytes, ext: "webp", mime: "image/webp" };
+  throw new HttpError(
+    400,
+    "Format d’image invalide. Les SVG ne sont pas acceptés.",
+  );
+}
+// Camera photos carry EXIF/XMP blocks (often the GPS position) and IPTC data.
+// A public profile keeps only what is needed to display the picture.
+export function stripJpegMetadata(input: Uint8Array) {
+  const keep: Uint8Array[] = [input.subarray(0, 2)];
+  let i = 2;
+  while (i + 1 < input.length && input[i] === 0xff) {
+    const marker = input[i + 1];
+    if (marker === 0xff) {
+      i++; // fill byte
+      continue;
+    }
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      keep.push(input.subarray(i, i + 2)); // markers without a length
+      i += 2;
+      continue;
+    }
+    // Start of scan (image data follows) or end of image.
+    if (marker === 0xda || marker === 0xd9 || i + 4 > input.length) break;
+    const end = i + 2 + ((input[i + 2] << 8) | input[i + 3]);
+    if (end < i + 4 || end > input.length) break;
+    // APP1 (EXIF, XMP), APP13 (IPTC) and comments are dropped.
+    if (marker !== 0xe1 && marker !== 0xed && marker !== 0xfe)
+      keep.push(input.subarray(i, end));
+    i = end;
+  }
+  keep.push(input.subarray(i));
+  const output = new Uint8Array(keep.reduce((n, part) => n + part.length, 0));
+  let offset = 0;
+  for (const part of keep) {
+    output.set(part, offset);
+    offset += part.length;
+  }
+  return output;
+}
+type Media = ReturnType<ReturnType<typeof admin>["storage"]["from"]>;
+type MediaFolder = "avatar" | "banner" | "posts";
+const MEDIA_FILE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp)$/;
+// Storage key of a profile-media URL this server issued for this owner and
+// folder; anything else (another member's file, an outside URL) gives null.
+function mediaKey(media: Media, url: unknown, owner: string, folder: MediaFolder) {
+  if (typeof url !== "string") return null;
+  const dir = `${owner}/${folder}/`;
+  const prefix = media.getPublicUrl(dir + "x").data.publicUrl.slice(0, -1);
+  const name = url.startsWith(prefix) ? url.slice(prefix.length) : "";
+  return MEDIA_FILE.test(name) ? dir + name : null;
+}
+async function uploadMedia(
+  media: Media,
+  req: Request,
+  owner: string,
+  folder: MediaFolder,
+) {
+  const image = await readImage(req);
+  const bytes =
+    image.ext === "jpg" ? stripJpegMetadata(image.bytes) : image.bytes;
+  const key = `${owner}/${folder}/${crypto.randomUUID()}.${image.ext}`;
+  const { error } = await media.upload(key, bytes, {
+    contentType: image.mime,
+    upsert: false,
+  });
+  check(error, "Le transfert de l’image a échoué.");
+  return { key, url: media.getPublicUrl(key).data.publicUrl };
+}
+async function creatorPosts(
+  client: NonNullable<ReturnType<typeof context>["client"]>,
+  author: string,
+  before?: string,
+) {
+  let query = client
+    .from("posts")
+    .select(postFields)
+    .eq("author_id", author)
+    .order("created_at", { ascending: false })
+    .limit(POSTS_PAGE + 1);
+  if (before) query = query.lt("created_at", before);
+  const { data, error } = await query;
+  const rows = data || [];
+  return {
+    error,
+    posts: rows.slice(0, POSTS_PAGE),
+    more: rows.length > POSTS_PAGE,
+  };
 }
 export async function marketApi(req: Request, c: Config) {
   const ctx = context(req, c);
@@ -231,7 +351,7 @@ export async function marketApi(req: Request, c: Config) {
       );
       const { data, count, error } = await ctx
         .client!.from("profiles")
-        .select("id,display_name,username,bio,website,products!products_seller_id_fkey!inner(id)", {
+        .select("id,display_name,username,bio,website,avatar_url,banner_url,products!products_seller_id_fkey!inner(id)", {
           count: "exact",
         })
         .eq("products.status", "published")
@@ -275,20 +395,47 @@ export async function marketApi(req: Request, c: Config) {
         .limit(100);
       check(pe);
       const market = admin(c);
-      const [stats, activity] = await Promise.all([
+      const [stats, activity, feed] = await Promise.all([
         market.rpc("market_creator_stats", { p_seller: profile.id }),
         market.rpc("market_activity", {
           p_product: null,
           p_seller: profile.id,
           p_limit: 25,
         }),
+        creatorPosts(ctx.client!, profile.id),
       ]);
       return ctx.json({
         profile,
         products,
         stats: stats.error ? null : stats.data,
         activity: activity.error ? [] : activity.data || [],
+        // Enrichment: a failure leaves the profile readable without posts.
+        posts: feed.error ? [] : feed.posts,
+        more_posts: !feed.error && feed.more,
       });
+    }
+    if (
+      path[0] === "creators" &&
+      path.length === 3 &&
+      path[2] === "posts" &&
+      req.method === "GET"
+    ) {
+      if (!ready(c)) return ctx.json({ posts: [], more: false });
+      // "+" of a timezone offset arrives as a space when left unencoded.
+      const before = z
+        .string()
+        .datetime({ offset: true })
+        .parse((url.searchParams.get("before") || "").replace(" ", "+"));
+      const { data: profile, error } = await ctx
+        .client!.from("profiles")
+        .select("id")
+        .eq("username", path[1])
+        .maybeSingle();
+      check(error);
+      if (!profile) throw new HttpError(404, "Créateur introuvable.");
+      const feed = await creatorPosts(ctx.client!, profile.id, before);
+      check(feed.error);
+      return ctx.json({ posts: feed.posts, more: feed.more });
     }
     if (path[0] === "market" && path.length === 2 && req.method === "GET") {
       const range = marketRange(url.searchParams.get("range"));
@@ -551,6 +698,118 @@ export async function marketApi(req: Request, c: Config) {
       if (error?.code === "23505")
         throw new HttpError(409, "Ce nom de profil est déjà utilisé.");
       check(error);
+      return ctx.json({ ok: true });
+    }
+    if (
+      (route === "profile/avatar" || route === "profile/banner") &&
+      ["POST", "DELETE"].includes(req.method)
+    ) {
+      const folder = path[1] as "avatar" | "banner";
+      const field = folder === "avatar" ? "avatar_url" : "banner_url";
+      const media = db.storage.from("profile-media");
+      const { data: current, error } = await db
+        .from("profiles")
+        .select("avatar_url,banner_url")
+        .eq("id", u.id)
+        .single();
+      check(error);
+      let image: { key: string; url: string } | null = null;
+      if (req.method === "POST") {
+        await rateLimit(db, req, "media:" + u.id, 40, 3600);
+        image = await uploadMedia(media, req, u.id, folder);
+      }
+      const { error: ue } = await db
+        .from("profiles")
+        .update({ [field]: image?.url ?? null })
+        .eq("id", u.id);
+      if (ue) {
+        if (image) await media.remove([image.key]);
+        check(ue);
+      }
+      // The replaced picture is no longer shown anywhere.
+      const previous = mediaKey(media, current?.[field], u.id, folder);
+      if (previous) await media.remove([previous]);
+      return ctx.json({ url: image?.url ?? null });
+    }
+    if (route === "posts/images" && req.method === "POST") {
+      await rateLimit(db, req, "media:" + u.id, 40, 3600);
+      const image = await uploadMedia(
+        db.storage.from("profile-media"),
+        req,
+        u.id,
+        "posts",
+      );
+      return ctx.json({ url: image.url }, 201);
+    }
+    if (route === "posts" && req.method === "POST") {
+      const b = postInput.parse(await parseBody(req));
+      const images = [...new Set(b.images)];
+      if (!b.body && !images.length && !b.product_id)
+        throw new HttpError(
+          400,
+          "Écrivez un message, ajoutez une photo ou un agent à présenter.",
+        );
+      const media = db.storage.from("profile-media");
+      if (images.some((url) => !mediaKey(media, url, u.id, "posts")))
+        throw new HttpError(
+          400,
+          "Ajoutez les photos depuis le formulaire de publication.",
+        );
+      if (b.product_id) {
+        const { data: listed, error } = await db
+          .from("products")
+          .select("id")
+          .eq("id", b.product_id)
+          .eq("seller_id", u.id)
+          .eq("status", "published")
+          .maybeSingle();
+        check(error);
+        if (!listed)
+          throw new HttpError(
+            400,
+            "Choisissez un de vos agents ou bundles publiés.",
+          );
+      }
+      await rateLimit(db, req, "post:" + u.id, 20, 3600);
+      const { data: post, error } = await db
+        .from("posts")
+        .insert({
+          author_id: u.id,
+          body: b.body,
+          product_id: b.product_id,
+          images,
+        })
+        .select(postFields)
+        .single();
+      check(error);
+      return ctx.json({ post }, 201);
+    }
+    if (path[0] === "posts" && path.length === 2 && req.method === "DELETE") {
+      const id = uuid.parse(path[1]);
+      const { data: post, error } = await db
+        .from("posts")
+        .select("id,author_id,images")
+        .eq("id", id)
+        .maybeSingle();
+      check(error);
+      if (!post) throw new HttpError(404, "Publication introuvable.");
+      // Authors delete their posts; moderators remove anyone's, on record.
+      const moderated = post.author_id !== u.id;
+      if (moderated) await requireAdmin(db, u.id);
+      const { error: de } = await db.from("posts").delete().eq("id", id);
+      check(de);
+      const media = db.storage.from("profile-media");
+      const keys = (post.images as string[])
+        .map((url) => mediaKey(media, url, post.author_id, "posts"))
+        .filter((key): key is string => !!key);
+      if (keys.length) await media.remove(keys);
+      if (moderated)
+        await db.from("audit_log").insert({
+          actor: u.id,
+          action: "post.removed",
+          target: id,
+          detail: { author: post.author_id },
+        });
       return ctx.json({ ok: true });
     }
     if (route === "favorites" && req.method === "GET") {
@@ -848,39 +1107,7 @@ export async function marketApi(req: Request, c: Config) {
         });
       }
       if (path.length === 3 && path[2] === "cover" && req.method === "POST") {
-        const form = await req.formData();
-        const file = form.get("file");
-        if (!(file instanceof File) || file.size < 12 || file.size > 3145728)
-          throw new HttpError(
-            400,
-            "Choisissez une image JPG, PNG ou WebP de 3 Mo maximum.",
-          );
-        const bytes = await file.arrayBuffer();
-        const a = new Uint8Array(bytes);
-        let ext = "";
-        let mime = "";
-        if (a[0] === 0xff && a[1] === 0xd8 && a[2] === 0xff) {
-          ext = "jpg";
-          mime = "image/jpeg";
-        } else if (
-          a[0] === 0x89 &&
-          a[1] === 0x50 &&
-          a[2] === 0x4e &&
-          a[3] === 0x47
-        ) {
-          ext = "png";
-          mime = "image/png";
-        } else if (
-          new TextDecoder().decode(a.slice(0, 4)) === "RIFF" &&
-          new TextDecoder().decode(a.slice(8, 12)) === "WEBP"
-        ) {
-          ext = "webp";
-          mime = "image/webp";
-        } else
-          throw new HttpError(
-            400,
-            "Format d’image invalide. Les SVG ne sont pas acceptés.",
-          );
+        const { bytes, ext, mime } = await readImage(req);
         const key = `${u.id}/${id}/${crypto.randomUUID()}.${ext}`;
         const { error: ce } = await db.storage
           .from("product-covers")

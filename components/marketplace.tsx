@@ -27,6 +27,7 @@ import {
   GitFork as Github,
   Globe,
   Headphones,
+  Images,
   Layers3,
   LayoutGrid,
   LifeBuoy,
@@ -35,6 +36,7 @@ import {
   Menu,
   Package,
   Palette,
+  Pencil,
   Plus,
   Rocket,
   Search,
@@ -53,6 +55,7 @@ import {
   engines,
   filterProducts,
   money,
+  type Post,
   type Product,
 } from "../lib/market/model";
 import { demoProducts } from "../lib/market/demo";
@@ -94,6 +97,12 @@ import {
   Moderation,
 } from "./workspace";
 import { DocsPage, LegalPage } from "./resources";
+import {
+  ProfileCover,
+  ProfileFeed,
+  ProfilePhoto,
+  ProfilePhotos,
+} from "./profile";
 export type Session = {
   user: {
     id: string;
@@ -104,6 +113,8 @@ export type Session = {
     username: string;
     bio: string;
     website: string;
+    avatar_url?: string | null;
+    banner_url?: string | null;
   };
   seller?: {
     charges_enabled: boolean;
@@ -423,7 +434,10 @@ export default function Marketplace({
             {t(
               session.user ? (
                 <Link className="account-button" href="/settings">
-                  <Avatar name={session.profile?.display_name || "Dev"} />
+                  <Avatar
+                    name={session.profile?.display_name || "Dev"}
+                    src={session.profile?.avatar_url}
+                  />
                   <span>{session.profile?.display_name}</span>
                 </Link>
               ) : (
@@ -470,6 +484,9 @@ export default function Marketplace({
                 favorites={favorites}
                 save={save}
                 initial={initial?.creator ?? undefined}
+                session={session}
+                refresh={refresh}
+                notify={notify}
               />
             ) : pathname === "/studio" ? (
               <Studio
@@ -1619,7 +1636,10 @@ function ProductDetail({
             className="seller-link"
             href={"/creators/" + p.profiles?.username}
           >
-            <Avatar name={p.profiles?.display_name || "Créateur"} />
+            <Avatar
+              name={p.profiles?.display_name || "Créateur"}
+              src={p.profiles?.avatar_url}
+            />
             <span>
               {t("Créé par")}
               <strong>{p.profiles?.display_name}</strong>
@@ -1817,9 +1837,13 @@ function Creators() {
               className="creator-card"
             >
               <div className="creator-cover">
-                <Braces size={40} />
+                {c.banner_url ? (
+                  <img className="mk-cover-photo" src={c.banner_url} alt="" loading="lazy" />
+                ) : (
+                  <Braces size={40} />
+                )}
               </div>
-              <Avatar large name={c.display_name} />
+              <Avatar large name={c.display_name} src={c.avatar_url} />
               <h2>{c.display_name}</h2>
               <span className="muted">
                 {t("@")}
@@ -1859,16 +1883,23 @@ function Creators() {
     </>
   );
 }
+type ProfileTab = "posts" | "products" | "photos";
 function CreatorProfile({
   name,
   favorites,
   save,
   initial,
+  session,
+  refresh,
+  notify,
 }: {
   name: string;
   favorites: string[];
   save: (id: string) => void;
   initial?: InitialData["creator"];
+  session: Session;
+  refresh: () => Promise<Session>;
+  notify: (message: string) => void;
 }) {
   const { t, locale } = useI18n();
   type CreatorView = {
@@ -1877,31 +1908,83 @@ function CreatorProfile({
     demo?: boolean;
     stats?: CreatorStats | null;
     activity?: MarketEvent[];
+    posts?: Post[];
+    more_posts?: boolean;
   };
   const [data, setData] = useState<CreatorView | null>(
     (initial as CreatorView | null) ?? null,
   );
   const [error, setError] = useState("");
+  const [tab, setTab] = useState<ProfileTab | null>(null);
+  const [photo, setPhoto] = useState<string | null>(null);
   useEffect(() => {
     setData((current) =>
       current && current.profile?.username === name ? current : null,
     );
     setError("");
+    setTab(null);
     api("creators/" + encodeURIComponent(name))
       .then(setData)
       .catch((e) => setError(e.message));
   }, [name]);
   if (error) return <Notice error>{t(error)}</Notice>;
   if (!data) return <Loading />;
+  const owner =
+    !data.demo && !!session.user && session.user.id === data.profile.id;
+  const posts = data.posts || [];
+  // Posts first, as on a social profile; a creator who has not posted yet
+  // opens on the listings for visitors.
+  const active: ProfileTab = tab ?? (posts.length || owner ? "posts" : "products");
+  const setPosts = (update: (posts: Post[]) => Post[]) =>
+    setData((d) => d && { ...d, posts: update(d.posts || []) });
+  const setPicture = (field: "avatar_url" | "banner_url", url: string | null) => {
+    setData((d) => d && { ...d, profile: { ...d.profile, [field]: url } });
+    notify(
+      field === "avatar_url"
+        ? "Photo de profil mise à jour."
+        : "Bannière mise à jour.",
+    );
+    refresh().catch(() => {});
+  };
+  const website = data.profile.website && (
+    <a
+      href={data.profile.website}
+      target="_blank"
+      rel="noreferrer"
+      className="button secondary"
+    >
+      <Globe size={15} />
+      {t(" Site du créateur ")}
+      <ArrowUpRight size={15} />
+    </a>
+  );
+  const tabButton = (key: ProfileTab, label: string, count?: number) => (
+    <button
+      type="button"
+      role="tab"
+      id={"profile-tab-" + key}
+      aria-controls={"profile-panel-" + key}
+      aria-selected={active === key}
+      className={active === key ? "selected" : ""}
+      onClick={() => setTab(key)}
+    >
+      {t(label)}
+      {count !== undefined && <span>{t(count)}</span>}
+    </button>
+  );
   return (
     <>
-      <div className="profile-banner">
-        <div className="profile-grid" />
-        <span>{t("BUILT WITH PURPOSE.")}</span>
-        <Code2 size={96} />
-      </div>
+      <ProfileCover
+        profile={data.profile}
+        owner={owner}
+        onChange={setPicture}
+      />
       <div className="public-profile">
-        <Avatar large name={data.profile.display_name} />
+        <ProfilePhoto
+          profile={data.profile}
+          owner={owner}
+          onChange={setPicture}
+        />
         <div>
           <h1>{data.profile.display_name}</h1>
           <p>
@@ -1909,19 +1992,16 @@ function CreatorProfile({
             {data.profile.username}
           </p>
         </div>
-        {t(
-          data.profile.website && (
-            <a
-              href={data.profile.website}
-              target="_blank"
-              rel="noreferrer"
-              className="button secondary"
-            >
-              <Globe size={15} />
-              {t(" Site du créateur ")}
-              <ArrowUpRight size={15} />
-            </a>
-          ),
+        {owner ? (
+          <div className="mk-profile-actions">
+            {website}
+            <Link className="button secondary" href="/settings">
+              <Pencil size={15} />
+              {t(" Modifier le profil")}
+            </Link>
+          </div>
+        ) : (
+          t(website)
         )}
       </div>
       <p className="profile-bio">
@@ -1939,28 +2019,84 @@ function CreatorProfile({
         ),
       )}
       {!data.demo && <CreatorMarketStats stats={data.stats ?? null} />}
-      <div className="section-heading">
-        <h2>
-          {t("Les créations du studio")}{" "}
-          <span className="muted">
-            {t("(")}
-            {t(data.products.length)}
-            {t(")")}
-          </span>
-        </h2>
+      <div
+        className="workspace-tabs mk-profile-tabs"
+        role="tablist"
+        aria-label={t("Sections du profil")}
+      >
+        {tabButton("posts", "Publications")}
+        {tabButton("products", "Agents et bundles ", data.products.length)}
+        {tabButton("photos", "Photos")}
       </div>
-      <div className="product-grid">
-        {t(
-          data.products.map((p: Product) => (
-            <ProductCard
-              key={p.id}
-              product={p}
-              saved={favorites.includes(p.id)}
-              onSave={save}
-            />
-          )),
-        )}
+      <div
+        role="tabpanel"
+        id="profile-panel-posts"
+        aria-labelledby="profile-tab-posts"
+        hidden={active !== "posts"}
+      >
+        <ProfileFeed
+          profile={data.profile}
+          products={data.products}
+          posts={posts}
+          setPosts={setPosts}
+          more={!!data.more_posts}
+          setMore={(more) => setData((d) => d && { ...d, more_posts: more })}
+          owner={owner}
+          moderator={!!session.isAdmin}
+          notify={notify}
+          onOpen={setPhoto}
+          onTab={setTab}
+        />
       </div>
+      <div
+        role="tabpanel"
+        id="profile-panel-products"
+        aria-labelledby="profile-tab-products"
+        hidden={active !== "products"}
+      >
+        <div className="section-heading">
+          <h2>
+            {t("Les créations du studio")}{" "}
+            <span className="muted">
+              {t("(")}
+              {t(data.products.length)}
+              {t(")")}
+            </span>
+          </h2>
+        </div>
+        <div className="product-grid">
+          {t(
+            data.products.map((p: Product) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                saved={favorites.includes(p.id)}
+                onSave={save}
+              />
+            )),
+          )}
+        </div>
+      </div>
+      <div
+        role="tabpanel"
+        id="profile-panel-photos"
+        aria-labelledby="profile-tab-photos"
+        hidden={active !== "photos"}
+      >
+        <section className="panel mk-panel">
+          <div className="panel-title">
+            <h3>
+              <Images size={15} /> {t("Photos")}
+            </h3>
+          </div>
+          <ProfilePhotos posts={posts} onOpen={setPhoto} />
+        </section>
+      </div>
+      {photo && (
+        <Modal title="Photo" onClose={() => setPhoto(null)}>
+          <img className="mk-lightbox" src={photo} alt="" />
+        </Modal>
+      )}
       {!data.demo && (
         <section className="panel mk-panel mk-profile-activity">
           <div className="panel-title">

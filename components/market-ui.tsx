@@ -61,20 +61,29 @@ export function Brand() {
 export function Avatar({
   name,
   large = false,
+  src,
 }: {
   name: string;
   large?: boolean;
+  // Profile photo; the initials remain when there is none.
+  src?: string | null;
 }) {
   const { t, locale } = useI18n();
   return (
-    <span className={"avatar " + (large ? "large" : "")}>
-      {t(
-        name
-          .split(" ")
-          .slice(0, 2)
-          .map((s) => s[0])
-          .join("")
-          .toUpperCase(),
+    <span
+      className={"avatar " + (large ? "large" : "") + (src ? " mk-photo" : "")}
+    >
+      {src ? (
+        <img src={src} alt="" loading="lazy" />
+      ) : (
+        t(
+          name
+            .split(" ")
+            .slice(0, 2)
+            .map((s) => s[0])
+            .join("")
+            .toUpperCase(),
+        )
       )}
     </span>
   );
@@ -159,7 +168,10 @@ export function ProductCard({
           href={"/creators/" + p.profiles?.username}
           className="creator-small"
         >
-          <Avatar name={p.profiles?.display_name || "Créateur"} />
+          <Avatar
+            name={p.profiles?.display_name || "Créateur"}
+            src={p.profiles?.avatar_url}
+          />
           {p.profiles?.display_name || t("Créateur")}
           <ChevronRight size={12} />
         </Link>

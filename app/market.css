@@ -983,3 +983,446 @@
     animation: none;
   }
 }
+
+/* Public profiles: banner, photo and posts ------------------------------ */
+/* Same palette as the panels and previews above; the decorative banner and
+   initials stay as they are until the creator adds pictures. */
+.avatar.mk-photo {
+  overflow: hidden;
+  background: #26371d;
+}
+.avatar.mk-photo > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-banner.mk-banner-photo {
+  /* Full width like the decorative banner, a little taller for a photo. */
+  height: clamp(140px, 24vw, 320px);
+  padding: 0;
+  background: #172112;
+}
+.mk-banner-photo > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.button.mk-cover-edit {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1;
+  background: #101510d9;
+  backdrop-filter: blur(6px);
+}
+.creator-cover:has(> .mk-cover-photo) {
+  position: relative;
+  padding: 0;
+}
+.mk-cover-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mk-avatar-edit {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.mk-avatar-camera {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--lime-dark);
+  border: 2px solid var(--bg);
+  color: var(--lime);
+}
+.mk-avatar-camera:hover {
+  background: #2e4120;
+}
+.mk-profile-actions {
+  margin-left: auto;
+  margin-top: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.settings-profile .subtle-link {
+  margin-top: 8px;
+}
+.mk-profile-tabs {
+  gap: 26px;
+  margin: 6px 0 24px;
+  border-bottom: 1px solid #304025;
+  overflow-x: auto;
+}
+.mk-profile-tabs > button {
+  font-size: 13px;
+  padding: 11px 0;
+  white-space: nowrap;
+}
+.mk-profile-tabs > button.selected {
+  box-shadow: inset 0 -2px 0 var(--lime);
+}
+.mk-profile-feed {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.mk-profile-aside {
+  padding: 20px;
+}
+.mk-profile-aside .mk-empty-line {
+  padding: 16px 0 2px;
+}
+.mk-sale-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+.mk-sale-list > a {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid #2a3a23;
+}
+.mk-sale-list > a:first-child {
+  border-top: 0;
+}
+.mk-sale-list .mk-thumb {
+  width: 36px;
+  height: 36px;
+}
+.mk-sale-list strong {
+  display: block;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mk-sale-list > a:hover strong {
+  color: var(--lime);
+}
+.mk-sale-list small {
+  font-size: 9px;
+  color: #8da279;
+}
+.mk-sale-list b {
+  font-size: 12px;
+  color: var(--lime);
+}
+.mk-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 16px;
+}
+#profile-panel-photos .mk-photo-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.mk-photo-grid > button {
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #172112;
+}
+.mk-photo-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s;
+}
+.mk-photo-grid > button:hover img {
+  transform: scale(1.04);
+}
+.mk-composer,
+.mk-post {
+  padding: 20px;
+}
+.mk-composer-head,
+.mk-post-head {
+  display: flex;
+  gap: 14px;
+}
+.mk-composer-head .avatar,
+.mk-post-head .avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 12px;
+}
+.mk-composer-head textarea {
+  flex: 1;
+  min-height: 84px;
+}
+.mk-composer-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 0 54px;
+}
+.mk-composer-image {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 1px solid #3d512f;
+  background: #172112;
+  display: grid;
+  place-items: center;
+  color: #a4c188;
+}
+.mk-composer-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mk-composer-image .icon-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #0c0e10cc;
+  color: #e7eddc;
+}
+.mk-composer .notice {
+  margin: 14px 0 0;
+}
+.mk-composer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #304025;
+}
+.mk-composer-tools select {
+  flex: 1;
+  min-width: 180px;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+.mk-post-head {
+  align-items: center;
+}
+.mk-post-head > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.mk-post-head strong {
+  font-size: 13px;
+}
+.mk-post-head time {
+  font-size: 10px;
+  color: #8da279;
+}
+.mk-post-body {
+  margin: 14px 0 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #d6e2cb;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mk-post-images {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 14px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.mk-post-images > button {
+  display: block;
+  background: #172112;
+}
+.mk-post-images img {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+.mk-post-images.count-1 {
+  grid-template-columns: 1fr;
+}
+.mk-post-images.count-1 img {
+  aspect-ratio: auto;
+  max-height: 520px;
+}
+.mk-post-images.count-3 > button:first-child {
+  grid-row: span 2;
+}
+.mk-post-images.count-3 > button:first-child img {
+  aspect-ratio: auto;
+}
+.mk-post-product {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 10px;
+  border: 1px solid #3d512f;
+  border-radius: 10px;
+  background: #172112;
+  transition: border-color 0.15s;
+}
+.mk-post-product:hover {
+  border-color: #7d985a;
+}
+.mk-post-product-art {
+  width: 76px;
+  height: 76px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 80%, #4a642e, #182813);
+  color: #c8efa4;
+}
+.mk-post-product-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mk-post-product-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.mk-post-product-text small {
+  font-size: 9px;
+  color: #8ea778;
+}
+.mk-post-product-text strong {
+  font-size: 14px;
+}
+.mk-post-product-text > span {
+  font-size: 11px;
+  color: #95ac80;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mk-post-product-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.mk-post-product-end b {
+  font-size: 15px;
+  color: var(--lime);
+}
+.mk-post-product-end em {
+  font-style: normal;
+  font-size: 10px;
+  color: #a4c188;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.mk-more {
+  width: 100%;
+}
+.mk-picture-preview {
+  margin: 20px 0 12px;
+  display: grid;
+  place-items: center;
+}
+.mk-picture-preview.banner {
+  aspect-ratio: 3 / 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 70% 100%, #425b2a, #152311);
+  color: #8daf63;
+}
+.mk-picture-preview.banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mk-picture-hint {
+  font-size: 11px;
+  color: #8da279;
+  margin-bottom: 16px;
+}
+.mk-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  clip-path: inset(50%);
+}
+.modal:has(.mk-lightbox) {
+  width: min(960px, 100%);
+}
+.mk-lightbox {
+  width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  border-radius: 10px;
+  margin-top: 16px;
+  background: var(--bg);
+}
+@media (max-width: 1100px) {
+  .mk-profile-feed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mk-profile-side {
+    order: 2;
+  }
+}
+@media (max-width: 760px) {
+  .mk-profile-actions {
+    margin-top: 10px;
+    margin-left: 0;
+  }
+  .mk-composer-images {
+    margin-left: 0;
+  }
+}
+@media (max-width: 560px) {
+  .mk-composer,
+  .mk-post {
+    padding: 16px;
+  }
+  .mk-post-product {
+    grid-template-columns: 60px minmax(0, 1fr);
+  }
+  .mk-post-product-art {
+    width: 60px;
+    height: 60px;
+  }
+  .mk-post-product-end {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .button.mk-cover-edit {
+    right: 10px;
+    bottom: 10px;
+  }
+}

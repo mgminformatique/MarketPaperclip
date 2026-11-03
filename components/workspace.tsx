@@ -1622,10 +1622,23 @@ export function SettingsPage({
           key={session.profile?.username}
         >
           <div className="settings-profile">
-            <Avatar name={session.profile?.display_name || "Dev"} large />
+            <Avatar
+              name={session.profile?.display_name || "Dev"}
+              src={session.profile?.avatar_url}
+              large
+            />
             <div>
               <h2>{t("Profil public")}</h2>
               <p>{t(session.user.email)}</p>
+              {session.profile?.username && (
+                <Link
+                  className="subtle-link"
+                  href={"/creators/" + session.profile.username}
+                >
+                  {t("Photo, bannière et publications : voir mon profil ")}
+                  <ArrowUpRight size={13} />
+                </Link>
+              )}
             </div>
           </div>
           <label>
