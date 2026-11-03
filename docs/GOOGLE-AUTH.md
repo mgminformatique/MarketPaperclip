@@ -7,18 +7,11 @@ JavaScript public ni aux variables Netlify.
 
 ## État au 3 novembre 2026
 
-- Projet Google Cloud créé : `marketpaperclip-mgm`, nom **MarketPaperclip**.
-- Client OAuth Google et écran de consentement : à configurer dans la console.
-- Fournisseur Google Supabase : désactivé lors de la vérification.
-- Intégration du bouton FR/EN et route `/api/auth/google` : déployées sur Netlify,
-  version `6aea06d36b5c764eec52883d` (fournisseur toujours désactivé).
-- `GOOGLE_AUTH_ENABLED` reste désactivé jusqu'à la configuration du fournisseur.
-- Hébergement existant : site Netlify `4911687f-987b-4363-9982-50078b56f9ef`,
-  accessible à `https://marketpaperclip.netlify.app`.
-- Netlify déclare `marketpaperclip.com` et `www.marketpaperclip.com`, mais le domaine
-  principal pointe encore vers le stationnement GoDaddy à cette date.
-- Le domaine saisi dans la demande, `marketpapertclip.com`, ne résout pas en DNS;
-  son orthographe reste à confirmer avant de modifier les domaines ou leur DNS.
+- Code : bouton « Continuer avec Google » (FR/EN) et route `/api/auth/google`, en production depuis le déploiement Netlify `6aea3798e8d525d49728bbc2` (branche `feature/profils`, commit 1609acc), masqués tant que `GOOGLE_AUTH_ENABLED` n'est pas `true` (la route répond 503).
+- Projet Google Cloud : `marketpaperclip-mgm` (nom **MarketPaperclip**), propriétaire `info@mgminformatique.ca`. Le domaine `https://marketpaperclip.com/` y est vérifié dans Search Console pour `info@` (voir [SEO.md](SEO.md)), ce qui sert aussi aux domaines autorisés de l'écran de consentement.
+- Reste à faire dans la console (pas d'API publique pour les clients OAuth « Application Web ») : écran de consentement et client OAuth, puis fournisseur Google dans Supabase, puis `GOOGLE_AUTH_ENABLED=true` et redéploiement.
+- Site Netlify `4911687f-987b-4363-9982-50078b56f9ef`, domaine `marketpaperclip.com` actif.
+- Attention : après l'activation dans le tableau de bord Supabase, un `supabase config push` (même via `scripts/supabase-config-push.mjs`) repousserait `config.toml`, qui ne déclare pas Google, et désactiverait le fournisseur. Vérifier `node scripts/supabase-config-push.mjs --diff` avant tout envoi.
 
 ## Configuration du client
 
