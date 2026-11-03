@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- untyped JSON fixtures */
 // User-market routes with Supabase and Stripe simulated at the HTTP boundary.
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";

@@ -50,10 +50,7 @@ const dateTime = (iso: string, locale: "fr" | "en") =>
 export function useMyOffer(productId: string | null, enabled: boolean) {
   const [offer, setOffer] = useState<Offer | null>(null);
   const reload = useCallback(() => {
-    if (!productId || !enabled) {
-      setOffer(null);
-      return Promise.resolve();
-    }
+    if (!productId || !enabled) return Promise.resolve();
     return api("offers?role=buyer")
       .then((d) =>
         setOffer(
@@ -67,7 +64,10 @@ export function useMyOffer(productId: string | null, enabled: boolean) {
   useEffect(() => {
     reload();
   }, [reload]);
-  return { offer, reload };
+  // An offer loaded for another product (or before sign-out) is never shown.
+  const visible =
+    enabled && offer && offer.product_id === productId ? offer : null;
+  return { offer: visible, reload };
 }
 
 export async function payOffer(offer: Offer) {

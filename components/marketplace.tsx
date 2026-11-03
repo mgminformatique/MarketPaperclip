@@ -153,11 +153,15 @@ export default function Marketplace({
     } catch {}
   }, []);
   useEffect(() => {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem("mp-toast") || "null");
-      if (saved && typeof saved.s === "string" && Date.now() - saved.at < 5000)
-        setToast(saved.s);
-    } catch {}
+    // Read the external store once the tree is mounted.
+    const restore = setTimeout(() => {
+      try {
+        const saved = JSON.parse(sessionStorage.getItem("mp-toast") || "null");
+        if (saved && typeof saved.s === "string" && Date.now() - saved.at < 5000)
+          setToast(saved.s);
+      } catch {}
+    }, 0);
+    return () => clearTimeout(restore);
   }, []);
   const refresh = useCallback(async () => {
     const d = await api("me");
@@ -184,16 +188,19 @@ export default function Marketplace({
         .then((d) => setFavorites(favoriteIds(d.ids)))
         .catch(() => {});
   }, [session.user?.id]);
+  // Only an expired or dismissed message is forgotten; an empty state at
+  // mount must not erase a message that is about to be restored.
+  const dismissToast = useCallback(() => {
+    setToast("");
+    try {
+      sessionStorage.removeItem("mp-toast");
+    } catch {}
+  }, []);
   useEffect(() => {
-    if (!toast) {
-      try {
-        sessionStorage.removeItem("mp-toast");
-      } catch {}
-      return;
-    }
-    const t = setTimeout(() => setToast(""), 4500);
+    if (!toast) return;
+    const t = setTimeout(dismissToast, 4500);
     return () => clearTimeout(t);
-  }, [toast]);
+  }, [toast, dismissToast]);
   useEffect(() => {
     setMobile(false);
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -551,7 +558,7 @@ export default function Marketplace({
             {t(toast)}
             <button
               aria-label={t("Fermer la notification")}
-              onClick={() => setToast("")}
+              onClick={dismissToast}
             >
               <X size={15} />
             </button>

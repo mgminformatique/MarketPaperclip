@@ -483,10 +483,10 @@ export function MarketPage({
   const [trending, setTrending] = useState<Trending[]>([]);
   const [fresh, setFresh] = useState<Product[]>([]);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState<MarketRange | null>(null);
+  const loading = loaded !== range;
   useEffect(() => {
     let live = true;
-    setLoading(true);
     Promise.all([
       api("market/overview?range=" + range),
       api("market/leaderboard?limit=8&range=" + (range === "24h" ? "7d" : range)),
@@ -500,7 +500,7 @@ export function MarketPage({
         setError("");
       })
       .catch((e) => live && setError(e.message))
-      .finally(() => live && setLoading(false));
+      .finally(() => live && setLoaded(range));
     return () => {
       live = false;
     };
