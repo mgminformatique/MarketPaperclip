@@ -8,14 +8,14 @@ JavaScript public ni aux variables Netlify.
 ## État au 3 novembre 2026
 
 - Code : bouton « Continuer avec Google » (FR/EN) et route `/api/auth/google`, en production depuis le déploiement Netlify `6aea3798e8d525d49728bbc2` (branche `feature/profils`, commit 1609acc), masqués tant que `GOOGLE_AUTH_ENABLED` n'est pas `true` (la route répond 503).
-- Projet Google Cloud : `marketpaperclip-mgm` (nom **MarketPaperclip**), propriétaire `info@mgminformatique.ca`. Le domaine `https://marketpaperclip.com/` y est vérifié dans Search Console pour `info@` (voir [SEO.md](SEO.md)), ce qui sert aussi aux domaines autorisés de l'écran de consentement.
+- Projet Google Cloud : `marketpaperclip`, propriétaire `info@mgminformatique.ca` (l'ancien projet `marketpaperclip-mgm` n'est plus utilisé). Le domaine `https://marketpaperclip.com/` y est vérifié dans Search Console pour `info@` (voir [SEO.md](SEO.md)), ce qui sert aussi aux domaines autorisés de l'écran de consentement.
 - Reste à faire dans la console (pas d'API publique pour les clients OAuth « Application Web ») : écran de consentement et client OAuth, puis fournisseur Google dans Supabase, puis `GOOGLE_AUTH_ENABLED=true` et redéploiement.
 - Site Netlify `4911687f-987b-4363-9982-50078b56f9ef`, domaine `marketpaperclip.com` actif.
 - Attention : après l'activation dans le tableau de bord Supabase, un `supabase config push` (même via `scripts/supabase-config-push.mjs`) repousserait `config.toml`, qui ne déclare pas Google, et désactiverait le fournisseur. Vérifier `node scripts/supabase-config-push.mjs --diff` avant tout envoi.
 
 ## Configuration du client
 
-Ouvrir [Google Auth Platform](https://console.cloud.google.com/auth/overview?project=marketpaperclip-mgm).
+Ouvrir [Google Auth Platform](https://console.cloud.google.com/auth/overview?project=marketpaperclip).
 
 1. Configurer l'application **MarketPaperclip**, le contact
    `info@mgminformatique.ca` et une audience externe pour permettre la connexion
