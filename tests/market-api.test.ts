@@ -798,3 +798,23 @@ test("Public configuration exposes launch state and price visibility, never secr
   assert.equal(trend([{ volume_cents: 100 }, { volume_cents: 150 }]), 50);
   assert.equal(trend([{ volume_cents: 0 }, { volume_cents: 0 }]), null);
 });
+
+test("Pretty-URL retries such as /api/x.html are answered 404 without side effects", async () => {
+  let touched = false;
+  globalThis.fetch = async () => {
+    touched = true;
+    throw new Error("No network expected");
+  };
+  for (const [path, method] of [
+    [`studio/${productId}.html`, "GET"],
+    [`products/${productId}.html`, "PATCH"],
+    ["offers.htm", "POST"],
+  ] as const) {
+    const r = await marketApi(
+      request(path, method, method === "GET" ? undefined : {}, { cookie: sessionCookie() }),
+      launched,
+    );
+    assert.equal(r.status, 404, path);
+  }
+  assert.equal(touched, false);
+});

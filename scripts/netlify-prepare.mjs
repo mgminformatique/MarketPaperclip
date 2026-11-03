@@ -1,6 +1,9 @@
-// Packages the Vinext Worker build as one Netlify Function (Node runtime).
+// Packages the Vinext Worker build as Netlify Functions (Node runtime).
 // Static files stay in dist/client and are served by Netlify's CDN first.
 // Netlify Frameworks API: https://docs.netlify.com/build/frameworks/frameworks-api/
+//
+// One function serves pages and the API, so a warm instance answers both and
+// visitors pay at most one cold start. Static files win (preferStatic).
 import { cp, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -8,8 +11,7 @@ import path from "node:path";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const server = path.join(root, "dist/server");
 const client = path.join(root, "dist/client");
-const name = "marketpaperclip-server";
-const target = path.join(root, ".netlify/v1/functions", name);
+const functions = path.join(root, ".netlify/v1/functions");
 
 async function mustExist(file, hint) {
   try {
@@ -28,15 +30,9 @@ if (htmlAtRoot.length)
     "dist/client contains HTML files; they would bypass server rendering.",
   );
 
-await rm(target, { recursive: true, force: true });
-await mkdir(target, { recursive: true });
-await cp(server, path.join(target, "server"), { recursive: true });
-
 // The entry adapts Netlify's (Request, Context) signature to the Worker
 // contract. Only the platform-observed address is forwarded as the client IP.
-await writeFile(
-  path.join(target, `${name}.mjs`),
-  `import worker from "./server/index.js";
+const entry = (config) => `import worker from "./server/index.js";
 
 export default async function marketpaperclip(request, context) {
   const env = { ...process.env };
@@ -50,19 +46,31 @@ export default async function marketpaperclip(request, context) {
   return worker.fetch(request, env, ctx);
 }
 
-export const config = {
-  path: ["/", "/*"],
-  preferStatic: true,
-  displayName: "MarketPaperclip",
-  generator: "marketpaperclip-netlify-prepare",
+export const config = ${JSON.stringify(config, null, 2)};
+`;
+
+const targets = {
+  "marketpaperclip-server": {
+    path: ["/", "/*"],
+    preferStatic: true,
+    displayName: "MarketPaperclip",
+    generator: "marketpaperclip-netlify-prepare",
+  },
 };
-`,
-);
 
-// Keep the server chunks as plain ES modules next to the entry.
-await writeFile(
-  path.join(target, "package.json"),
-  JSON.stringify({ type: "module", private: true }, null, 2) + "\n",
-);
+await rm(functions, { recursive: true, force: true });
+for (const [name, config] of Object.entries(targets)) {
+  const target = path.join(functions, name);
+  await mkdir(target, { recursive: true });
+  await cp(server, path.join(target, "server"), { recursive: true });
+  await writeFile(path.join(target, `${name}.mjs`), entry(config));
+  // Keep the server chunks as plain ES modules next to the entry.
+  await writeFile(
+    path.join(target, "package.json"),
+    JSON.stringify({ type: "module", private: true }, null, 2) + "\n",
+  );
+}
 
-console.log(`Netlify function prepared: .netlify/v1/functions/${name}`);
+console.log(
+  "Netlify functions prepared: " + Object.keys(targets).join(", "),
+);

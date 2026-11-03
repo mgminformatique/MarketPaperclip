@@ -15,7 +15,9 @@ type WorkerProps = {
 function storageOrigin(env: Config) {
   try {
     const url = new URL(env.SUPABASE_URL || "");
-    return url.protocol === "https:" ? url.origin : "";
+    // Local Supabase stacks (tests, development) are served over plain HTTP.
+    const local = ["localhost", "127.0.0.1"].includes(url.hostname);
+    return url.protocol === "https:" || local ? url.origin : "";
   } catch {
     return "";
   }
@@ -96,7 +98,7 @@ const worker = {
       const storage = storageOrigin(config);
       response.headers.set(
         "Content-Security-Policy",
-        `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'${storage ? " " + storage : ""}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com https://*.chatgpt.site`,
+        `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:${storage ? " " + storage : ""}; font-src 'self' data:; connect-src 'self'${storage ? " " + storage : ""}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://chatgpt.com https://*.chatgpt.com https://*.chatgpt.site`,
       );
       response.headers.set("Strict-Transport-Security", "max-age=31536000");
     }

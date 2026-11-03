@@ -1644,7 +1644,7 @@ export function SettingsPage({
               name="username"
               defaultValue={session.profile?.username}
               required
-              pattern="[a-z0-9][a-z0-9_-]{2,29}"
+              pattern="[a-z0-9][a-z0-9_\-]{2,29}"
             />
             <small>
               {t(

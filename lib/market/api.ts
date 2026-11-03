@@ -85,6 +85,10 @@ export async function marketApi(req: Request, c: Config) {
   const url = new URL(req.url);
   const path = url.pathname.replace(/^\/api\//, "").split("/");
   const route = path.join("/");
+  // No API route ends with an HTML extension. Proxies that emulate "pretty
+  // URLs" retry a 404 as /path.html; answer those without side effects.
+  if (/\.html?$/i.test(url.pathname))
+    return ctx.json({ error: "Page introuvable.", code: "not_found" }, 404);
   try {
     if (route === "webhooks/stripe" && req.method === "POST")
       return await handleWebhook(req, c);
@@ -170,12 +174,30 @@ export async function marketApi(req: Request, c: Config) {
             })
           : Promise.resolve({ data: [], error: null }),
       ]);
+      // A signed-in visitor sees whether this product is already theirs.
+      let owned = false;
+      if (live) {
+        const {
+          data: { user: viewer },
+        } = await ctx.client!.auth.getUser();
+        if (viewer) {
+          const { data: mine } = await market
+            .from("orders")
+            .select("id")
+            .eq("buyer_id", viewer.id)
+            .eq("product_id", data.id)
+            .in("status", ["paid", "partially_refunded"])
+            .limit(1);
+          owned = !!mine?.length;
+        }
+      }
       // Market data enriches the page; its absence never hides the product.
       return ctx.json({
         product: data,
         reviews: reviews || [],
         stats: (stats.data as Record<string, unknown> | null)?.[data.id] ?? null,
         activity: activity.error ? [] : activity.data || [],
+        owned,
       });
     }
     if (route === "creators" && req.method === "GET") {

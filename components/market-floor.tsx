@@ -86,7 +86,7 @@ export function EventAmount({ event }: { event: MarketEvent }) {
   const { t, locale } = useI18n();
   const prices = usePricesVisible();
   if (!prices || event.amount_cents === null) return <span>{t("—")}</span>;
-  if (event.kind === "sold" && !event.amount_cents)
+  if (!event.amount_cents && event.kind !== "price_changed")
     return <span>{t("Gratuit")}</span>;
   const moved =
     event.kind === "price_changed" && event.previous_cents !== null

@@ -144,7 +144,21 @@ export default function Marketplace({
   const [toast, setToast] = useState("");
   const [globalQuery, setGlobalQuery] = useState("");
   const [bootError, setBootError] = useState("");
-  const notify = useCallback((s: string) => setToast(s), []);
+  // Route changes remount this tree; a message sent just before navigating
+  // (e.g. "submitted for review") is carried over for a few seconds.
+  const notify = useCallback((s: string) => {
+    setToast(s);
+    try {
+      sessionStorage.setItem("mp-toast", JSON.stringify({ s, at: Date.now() }));
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("mp-toast") || "null");
+      if (saved && typeof saved.s === "string" && Date.now() - saved.at < 5000)
+        setToast(saved.s);
+    } catch {}
+  }, []);
   const refresh = useCallback(async () => {
     const d = await api("me");
     setSession(d);
@@ -171,7 +185,12 @@ export default function Marketplace({
         .catch(() => {});
   }, [session.user?.id]);
   useEffect(() => {
-    if (!toast) return;
+    if (!toast) {
+      try {
+        sessionStorage.removeItem("mp-toast");
+      } catch {}
+      return;
+    }
     const t = setTimeout(() => setToast(""), 4500);
     return () => clearTimeout(t);
   }, [toast]);
@@ -1341,6 +1360,7 @@ function ProductDetail({
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [offering, setOffering] = useState(false);
+  const [owned, setOwned] = useState(false);
   const showPrices = config.prices !== false;
   const load = useCallback(
     () =>
@@ -1350,6 +1370,7 @@ function ProductDetail({
           setReviews(d.reviews);
           setStats(d.stats || null);
           setActivity(d.activity || []);
+          setOwned(!!d.owned);
         })
         .catch((e) => setError(e.message)),
     [slug],
@@ -1373,7 +1394,12 @@ function ProductDetail({
   // Free agents open with the launch gate; paid ones need Stripe payments.
   const open = !!p && !p.demo && (free ? !!config.launched : config.payments);
   const offersOpen =
-    !!p && !p.demo && config.payments && !own && (p.price_cents ?? 0) > 0;
+    !!p &&
+    !p.demo &&
+    config.payments &&
+    !own &&
+    !owned &&
+    (p.price_cents ?? 0) > 0;
   const { offer, reload: reloadOffer } = useMyOffer(
     p && !p.demo ? p.id : null,
     !!session.user && offersOpen,
@@ -1605,7 +1631,7 @@ function ProductDetail({
               <Notice>
                 {t("Fiche de démonstration. Ce produit n’est pas en vente.")}
               </Notice>
-            ) : showPrices && !own ? (
+            ) : showPrices && !own && !owned ? (
               <label className="checkbox-label">
                 <input
                   type="checkbox"
@@ -1620,6 +1646,12 @@ function ProductDetail({
               </label>
             ) : null,
           )}
+          {owned ? (
+            <Link className="button primary full" href="/library">
+              {t("Dans vos acquisitions")}
+              <FolderOpen size={18} />
+            </Link>
+          ) : (
           <button
             className="button primary full"
             disabled={
@@ -1646,6 +1678,7 @@ function ProductDetail({
             )}
             <ArrowUpRight size={18} />
           </button>
+          )}
           {offersOpen &&
             (offer ? (
               <MyOfferStatus
