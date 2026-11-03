@@ -23,6 +23,8 @@ Le contenu des publications est rendu côté serveur (référencement, aperçus 
 
 ## Mise en production
 
+**État au 3 novembre 2026 : en ligne**, avec l’accord du propriétaire. Migration 008 appliquée à la base de production (`ltommtumsvvqxdknpkfd`), puis déploiement Netlify de production `6aea2b28d4db1f119a9fe111` depuis la branche `feature/profils` (615c511). Vérifié en production : pages et API (catalogue, créateurs, publications refusées sans connexion), compartiment `profile-media`, nouveaux styles servis, démarrage de l’interface en français et en anglais (`node --experimental-vm-modules scripts/check-client-interactions.mjs`). La connexion Google en cours dans une autre session n’est pas incluse dans ce déploiement : fusionner `feature/profils` avant tout prochain déploiement depuis une autre branche, sinon les profils disparaîtraient du site.
+
 L’ordre compte : la migration d’abord, puis le code (le catalogue lit `avatar_url`).
 
 ```sh
