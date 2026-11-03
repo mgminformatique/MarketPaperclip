@@ -1,6 +1,6 @@
 # MarketPaperclip
 
-Marketplace indépendant d’agents et de bundles d’agents, conçu pour MGM Informatique. Interface responsive française et anglaise, backend Supabase et paiements Stripe Connect. Les prix du catalogue sont temporairement masqués.
+Marketplace indépendant d’agents et de bundles d’agents, conçu pour MGM Informatique : un **marché entre utilisateurs** (prix fixés par les vendeurs, offres, activité et statistiques en direct) réglé par Stripe Connect. Interface responsive française et anglaise, backend Supabase, hébergement Netlify. L’affichage des prix se règle avec `SHOW_PRICES`.
 
 ## État livré
 
@@ -9,6 +9,8 @@ Le code de l’interface et du backend est implémenté. Sans configuration, le 
 ### Fonctionnalités
 
 - Catalogue avec recherche, catégories, modèles, tri, pagination, agents et bundles.
+- **Le marché** (`/market`) : volume, ventes, prix plancher, tendances, top créateurs, activité en direct, nouvelles annonces; bandeau en direct sur l’accueil. Voir [docs/MARKET.md](docs/MARKET.md).
+- **Offres** entre acheteurs et vendeurs (accepter/refuser, 72 h pour payer le montant convenu), gestion des annonces (prix et pause sans nouvelle validation), statistiques de fiche et de créateur.
 - Fiches détaillées : prérequis, installation, version, licence, avis d’acheteurs confirmés.
 - Profils publics, favoris, studio créateur, brouillons, dépôt ZIP/JSON privé (20 Mo).
 - Inscription, confirmation du courriel, connexion, récupération et changement du mot de passe via Supabase Auth. OAuth GitHub optionnel.
@@ -29,7 +31,7 @@ npm run build
 
 Pour le développement local, copiez `.env.example` dans `.dev.vars`, renseignez les valeurs puis lancez `npm run dev`. Les secrets ne doivent jamais être préfixés `NEXT_PUBLIC_` ni ajoutés à `.openai/hosting.json`.
 
-Le projet utilise React 19, TypeScript, Vinext/Vite et Cloudflare Workers. Le SDK Supabase reste côté serveur; les sessions sont transmises par cookies HttpOnly. Les polices Manrope et DM Sans sont auto-hébergées via Fontsource.
+Le projet utilise React 19, TypeScript et Vinext/Vite. Le build Worker s’exécute sur Netlify (fonction Node) ou sur Cloudflare Workers. Le SDK Supabase reste côté serveur; les sessions sont transmises par cookies HttpOnly. Les polices Manrope et DM Sans sont auto-hébergées via Fontsource.
 
 ## Mise en service
 
@@ -37,15 +39,15 @@ Le projet Supabase désigné est `ltommtumsvvqxdknpkfd`. Le déploiement des six
 
 Lisez [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), puis [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md). Les scripts SQL à appliquer dans l’ordre sont dans `supabase/migrations/`.
 
-Le domaine cible est **marketpaperclip.com**. L’instance de présentation hébergée est distincte de la configuration DNS finale. Les comptes, les paiements et le domaine ne sont pas réputés activés tant que les contrôles externes du guide n’ont pas été réalisés.
+La mise en ligne Netlify + GoDaddy + Stripe est décrite pas à pas dans [docs/NETLIFY.md](docs/NETLIFY.md). Le domaine cible est **marketpaperclip.com**. L’instance de présentation hébergée est distincte de la configuration DNS finale. Les comptes, les paiements et le domaine ne sont pas réputés activés tant que les contrôles externes du guide n’ont pas été réalisés.
 
 ## Architecture
 
 ```text
-app/                     Pages et point d’entrée API
-components/              Catalogue, studio, acquisitions, documentation
+app/                     Pages et point d’entrée API (market.css : styles du marché)
+components/              Catalogue, studio, acquisitions, documentation, marché (market-floor, market-desk)
 lib/market/              Contrats, validation, Supabase, Stripe et orchestration API
-supabase/migrations/     Tables, RLS, permissions et procédures transactionnelles
+supabase/migrations/     Tables, RLS, permissions et procédures transactionnelles (001–007)
 worker/                  Adaptateur Cloudflare et en-têtes de sécurité
 public/art/              Illustrations originales optimisées en WebP
 scripts/preflight.mjs    Contrôle des noms de variables requis, sans révéler les valeurs
@@ -62,6 +64,7 @@ docs/                    Déploiement, exploitation, validation et provenance de
 | `npm test`          | Tests d’API et tests SQL/RLS                                  |
 | `npm run check`     | TypeScript puis tests                                         |
 | `npm run build`     | Build de production Worker + assets                           |
+| `npm run build:netlify` | Build + fonction Netlify (`.netlify/v1/functions`)        |
 | `npm run preflight` | Vérification de la configuration fournie dans l’environnement |
 
 Le fichier `.openai/hosting.json` identifie l’instance Sites existante. Préservez son identifiant pour mettre à jour cette instance; ne créez pas une nouvelle instance par erreur.

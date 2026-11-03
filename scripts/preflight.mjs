@@ -39,8 +39,19 @@ if (process.env.STRIPE_SECRET_KEY) {
       : "MODE TEST: no live payment acceptance verified",
   );
 }
+for (const name of ["MARKET_ADMIN_EMAILS", "SITE_ALIASES"])
+  console.log(`${process.env[name] ? "OK" : "OPTIONAL"} ${name}`);
+if (process.env.SITE_ALIASES)
+  for (const alias of process.env.SITE_ALIASES.split(",").map((v) => v.trim()))
+    if (!/^https:\/\/(\*)?[a-z0-9.-]+$/i.test(alias)) {
+      console.log("INVALID SITE_ALIASES entry (https origin, optional leading *)");
+      failed = true;
+    }
 console.log(
-  "REVIEW Apply all migrations, verify SMTP and redirects, Stripe Connect/webhook, DNS and terms.",
+  `INFO prices ${process.env.SHOW_PRICES === "false" ? "hidden" : "shown"}; launch ${process.env.LAUNCH_READY === "true" ? "open (free acquisitions)" : "closed"}; payments ${process.env.PAYMENTS_ENABLED === "true" ? "enabled" : "disabled"}`,
+);
+console.log(
+  "REVIEW Apply all migrations (001-007), verify SMTP and redirects, Stripe Connect/webhook, DNS and terms.",
 );
 console.log(
   "REVIEW Verify browser desktop/mobile and complete a Stripe TEST purchase before enabling launch flags.",

@@ -2,7 +2,7 @@
 
 ## 1. Configuration requise
 
-Le code est livré; il faut un projet Supabase dédié, un compte Stripe avec Connect, un hébergement Worker et le contrôle DNS de marketpaperclip.com. Ne réutilisez pas une base de production d’un autre projet.
+Le code est livré; il faut un projet Supabase dédié, un compte Stripe avec Connect, un hébergement (Netlify retenu, voir [NETLIFY.md](NETLIFY.md)) et le contrôle DNS de marketpaperclip.com. Ne réutilisez pas une base de production d’un autre projet.
 
 | Variable serveur            | Usage                                                                                                                      |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -12,6 +12,9 @@ Le code est livré; il faut un projet Supabase dédié, un compte Stripe avec Co
 | `STRIPE_SECRET_KEY`         | Clé Stripe TEST pendant la recette; LIVE seulement après validation                                                        |
 | `STRIPE_WEBHOOK_SECRET`     | Secret de signature de l’endpoint de webhook, même environnement Stripe                                                    |
 | `SITE_URL`                  | Origine HTTPS exacte, sans chemin, par ex. `https://marketpaperclip.com`                                                   |
+| `SITE_ALIASES`              | Autres origines HTTPS du même site, séparées par des virgules (www, `*.netlify.app`, aperçus `https://*--site.netlify.app`) |
+| `MARKET_ADMIN_EMAILS`       | Courriels confirmés promus modérateurs à la connexion                                                                       |
+| `SHOW_PRICES`               | `false` masque les prix partout; prix visibles par défaut                                                                   |
 | `PLATFORM_FEE_BPS`          | Commission en points de base. `1000` signifie 10 %, exemple seulement. Plage 0–3000. Aucun taux commercial n’a été décidé. |
 | `PAYMENTS_ENABLED`          | `false` pendant la préparation, `true` après configuration complète                                                        |
 | `LAUNCH_READY`              | `false` jusqu’à la fin de la recette et à la finalisation des conditions                                                   |
@@ -23,7 +26,7 @@ Les variables peuvent être configurées dans les secrets d’environnement du S
 ## 2. Supabase
 
 1. Créer un projet dédié, activer les sauvegardes adaptées à l’exploitation.
-2. Appliquer, dans l’ordre, les six migrations SQL du dossier `supabase/migrations/`.
+2. Appliquer, dans l’ordre, les sept migrations SQL du dossier `supabase/migrations/` (`007_market_exchange.sql` ajoute le marché utilisateur).
 3. Vérifier que le bucket `agent-packages` est privé. N’ajouter aucune politique de lecture publique pour les packages sur `storage.objects`. Le bucket `product-covers` est, lui, public pour les images de présentation; ses écritures passent uniquement par le serveur.
 4. Activer la confirmation obligatoire du courriel et configurer un SMTP de production.
 5. Configurer `Site URL` et les URLs de redirection autorisées :
@@ -89,6 +92,11 @@ https://marketpaperclip.com/api/webhooks/stripe
 **Attention au mode privé de présentation :** un site protégé par l’accès propriétaire ChatGPT ne peut pas recevoir les webhooks publics Stripe. Conserver les paiements désactivés tant que l’origine finale n’est pas accessible à Stripe et aux clients. Le changement d’audience du Site est une opération distincte.
 
 ## 4. Hébergement
+
+### Netlify (hébergement retenu)
+
+Le build Worker est exécuté dans une fonction Netlify Node; les fichiers statiques sont servis par le CDN. La procédure complète (base, Auth, variables, domaine GoDaddy, Stripe) est dans [NETLIFY.md](NETLIFY.md).
+
 
 ### Instance Sites déjà créée
 

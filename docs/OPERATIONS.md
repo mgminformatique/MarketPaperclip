@@ -41,3 +41,12 @@ Les demandes d’assistance sont enregistrées dans la file de modération. Cett
 Sauvegarder les données Supabase et le bucket selon les options du projet. Les sauvegardes de la base ne remplacent pas celles des objets. Tester une restauration avant l’exploitation. Conserver le commit et la version de chaque déploiement.
 
 Un rollback applicatif ne doit pas annuler les écritures de commandes déjà traitées. Les migrations sont versionnées; préparer des migrations correctives plutôt que supprimer les tables.
+
+## Marché utilisateur
+
+- **Événements publics** (`market_events`) : alimentés par des triggers sur `products` et `orders`. Ils ne contiennent jamais l'acheteur. Une vente n'est enregistrée qu'au premier passage d'une commande à `paid` (un litige gagné ne crée pas de seconde vente). Ne pas éditer ce registre à la main.
+- **Offres** : `pending` (7 jours) → `accepted` (72 h pour payer) → `completed` au paiement confirmé ; ou `declined`, `withdrawn`, `expired`. L'expiration est évaluée à la lecture ; aucune tâche planifiée n'est nécessaire. Le montant payé est celui de l'offre, plafonné au prix courant.
+- **Annonces** : un vendeur peut changer le prix ou mettre en pause une annonce validée sans nouvelle revue (`approved_version`). Toute modification de contenu repasse en brouillon puis en validation.
+- **Modérateurs** : `MARKET_ADMIN_EMAILS` attribue le rôle à la première connexion d'un compte dont le courriel est confirmé (trace `admin.bootstrap` dans `audit_log`). Retirer un modérateur : supprimer sa ligne dans `market_admins` et l'adresse de la variable.
+- **Uploads directs** : une URL signée non utilisée ou un fichier refusé à la vérification peut laisser un objet orphelin dans `agent-packages` (les fichiers refusés sont supprimés immédiatement). Même règle de nettoyage que pour les autres objets.
+- **Statistiques** : calculées à la demande par des fonctions SQL (index dédiés sur `orders` et `market_events`). Les remboursements et litiges sont exclus du volume.

@@ -1,2 +1,35 @@
 # Local CLI identity. The production reference is pinned in the deployment workflow.
 project_id = "marketpaperclip"
+
+# Production Auth settings. Preview, then apply (only declared properties change;
+# SMTP, providers and other settings stay as configured in the Dashboard):
+#   supabase config diff --project-ref ltommtumsvvqxdknpkfd
+#   supabase config push --project-ref ltommtumsvvqxdknpkfd
+[auth]
+site_url = "https://marketpaperclip.com"
+# The Site URL host is always allowed; these cover the other origins of the
+# same site (with or without a query string such as ?next=/settings?reset=1).
+additional_redirect_urls = [
+  "https://marketpaperclip.com/api/auth/callback",
+  "https://www.marketpaperclip.com/**",
+  "https://marketpaperclip.netlify.app/**",
+  "https://*--marketpaperclip.netlify.app/**",
+  "https://marketpaperclip.murphylexus.chatgpt.site/api/auth/callback",
+  "https://marketpaperclip.murphylexus.chatgpt.site/settings",
+  "https://marketpaperclip.murphylexus.chatgpt.site/settings?reset=1",
+]
+enable_signup = true
+minimum_password_length = 12
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+
+[auth.email.template.confirmation]
+subject = "MarketPaperclip — Confirmez votre compte / Confirm your account"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "MarketPaperclip — Nouveau mot de passe / Reset password"
+content_path = "./supabase/templates/recovery.html"

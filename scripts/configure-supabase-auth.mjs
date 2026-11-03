@@ -5,7 +5,17 @@ export const PROJECT_REF = "ltommtumsvvqxdknpkfd";
 const allowedOrigins = new Set([
   "https://marketpaperclip.murphylexus.chatgpt.site",
   "https://marketpaperclip.com",
+  "https://www.marketpaperclip.com",
+  "https://marketpaperclip.netlify.app",
 ]);
+// Auth already accepts any redirect on the Site URL host. These patterns cover
+// the other origins serving the same site, including Netlify deploy previews,
+// with or without a query string (e.g. ?next=/settings?reset=1).
+const redirectPatterns = [
+  "https://www.marketpaperclip.com/**",
+  "https://marketpaperclip.netlify.app/**",
+  "https://*--marketpaperclip.netlify.app/**",
+];
 
 export async function desiredAuthConfig(current, siteUrl) {
   const site = new URL(siteUrl);
@@ -18,6 +28,7 @@ export async function desiredAuthConfig(current, siteUrl) {
     redirects.add(origin + "/settings");
     redirects.add(origin + "/settings?reset=1");
   }
+  for (const pattern of redirectPatterns) redirects.add(pattern);
   return {
     site_url: site.origin,
     uri_allow_list: [...redirects].join(","),

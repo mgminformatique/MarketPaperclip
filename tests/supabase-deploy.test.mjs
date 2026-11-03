@@ -52,3 +52,13 @@ test("An API refusal fails without disclosing the response body", async () => {
     fetchImpl: async () => new Response("sensitive-provider-settings", { status: 403 }),
   }), (error) => /HTTP 403/.test(error.message) && !error.message.includes("sensitive-provider-settings"));
 });
+
+test("Production, www, Netlify and deploy-preview origins are allowed redirect targets", async () => {
+  for (const site of ["https://marketpaperclip.com", "https://marketpaperclip.netlify.app", "https://www.marketpaperclip.com"]) {
+    const config = await desiredAuthConfig({ uri_allow_list: "" }, site);
+    assert.equal(config.site_url, site);
+    for (const pattern of ["https://www.marketpaperclip.com/**", "https://marketpaperclip.netlify.app/**", "https://*--marketpaperclip.netlify.app/**", "https://marketpaperclip.com/api/auth/callback"])
+      assert.ok(config.uri_allow_list.split(",").includes(pattern), pattern);
+  }
+  await assert.rejects(() => desiredAuthConfig({}, "https://marketpaperclip.netlify.app.evil.example"), /SITE_URL/);
+});
