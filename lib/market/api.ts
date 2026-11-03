@@ -20,14 +20,16 @@ import {
   requireAdmin,
   check,
   siteOrigin,
+  adminEmails,
   HttpError,
   type Config,
 } from "./server";
 import { handleWebhook } from "./webhook";
+import { emptyOverview, marketRange } from "./market";
 const publicFields =
-  "id,seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,currency,license,tags,requirements,setup,agent_count,status,created_at,cover_url,profiles!products_seller_id_fkey(display_name,username,bio)";
+  "id,seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,currency,license,tags,requirements,setup,agent_count,status,created_at,listed_at,cover_url,profiles!products_seller_id_fkey(display_name,username,bio)";
 const orderFields =
-  "id,product_id,product_title,product_version,license,amount_cents,total_cents,tax_cents,fee_cents,currency,status,created_at,paid_at";
+  "id,product_id,product_title,product_version,license,amount_cents,total_cents,tax_cents,fee_cents,currency,status,created_at,paid_at,offer_id";
 const credentials = z.object({
   email: z.string().email().max(254),
   password: z.string().min(12).max(128),
@@ -38,6 +40,46 @@ const parseBody = async (req: Request) => {
   if (raw.length > 30000) throw new HttpError(413, "Requête trop volumineuse.");
   return JSON.parse(raw);
 };
+type DbError = { code?: string; message?: string } | null;
+// Database functions raise English sentinels; buyers and sellers get a clear
+// message, everything unexpected stays a generic failure.
+function failOn(error: DbError, known: [RegExp, number, string][]) {
+  if (!error) return;
+  const text = error.message || "";
+  for (const [pattern, status, message] of known)
+    if (pattern.test(text) || pattern.test(error.code || ""))
+      throw new HttpError(status, message);
+  throw new HttpError(500, "Impossible de terminer cette action.");
+}
+const offerExpired = (o: { status: string; expires_at: string }) =>
+  ["pending", "accepted"].includes(o.status) &&
+  new Date(o.expires_at).getTime() < Date.now();
+const packagePath = (userId: string, productId: string, value: string) =>
+  new RegExp(
+    `^${userId}/${productId}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(zip|json)$`,
+  ).test(value);
+// Accepts ZIP archives and JSON object manifests; returns the stored type.
+function inspectPackage(bytes: ArrayBuffer, ext: "zip" | "json") {
+  if (ext === "zip") {
+    const h = new Uint8Array(bytes);
+    if (h[0] !== 0x50 || h[1] !== 0x4b || h[2] !== 3 || h[3] !== 4)
+      throw new HttpError(400, "Archive ZIP invalide.");
+    return "application/zip";
+  }
+  try {
+    const v = JSON.parse(new TextDecoder().decode(bytes));
+    if (!v || typeof v !== "object" || Array.isArray(v)) throw 0;
+  } catch {
+    throw new HttpError(400, "Le manifeste JSON doit être un objet valide.");
+  }
+  return "application/json";
+}
+async function sha256(bytes: ArrayBuffer) {
+  return Array.from(
+    new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+    (v) => v.toString(16).padStart(2, "0"),
+  ).join("");
+}
 export async function marketApi(req: Request, c: Config) {
   const ctx = context(req, c);
   const url = new URL(req.url);
@@ -82,7 +124,9 @@ export async function marketApi(req: Request, c: Config) {
       const sort = url.searchParams.get("sort");
       query = sort?.startsWith("price")
         ? query.order("price_cents", { ascending: sort === "price-asc" })
-        : query.order("created_at", { ascending: false });
+        : sort === "listed"
+          ? query.order("listed_at", { ascending: false, nullsFirst: false })
+          : query.order("created_at", { ascending: false });
       const { data, count, error } = await query
         .order("id")
         .range(page * 24, page * 24 + 23);
@@ -104,13 +148,35 @@ export async function marketApi(req: Request, c: Config) {
         .maybeSingle();
       check(error);
       if (!data) throw new HttpError(404, "Agent introuvable.");
-      const { data: reviews } = await ctx
-        .client!.from("reviews")
-        .select("rating,body,created_at,profiles!reviews_user_id_fkey(display_name,username)")
-        .eq("product_id", data.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      return ctx.json({ product: data, reviews: reviews || [] });
+      const live = data.status === "published";
+      const market = admin(c);
+      const [{ data: reviews }, stats, activity] = await Promise.all([
+        ctx
+          .client!.from("reviews")
+          .select(
+            "rating,body,created_at,profiles!reviews_user_id_fkey(display_name,username)",
+          )
+          .eq("product_id", data.id)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        live
+          ? market.rpc("market_product_stats", { p_ids: [data.id] })
+          : Promise.resolve({ data: null, error: null }),
+        live
+          ? market.rpc("market_activity", {
+              p_product: data.id,
+              p_seller: null,
+              p_limit: 25,
+            })
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      // Market data enriches the page; its absence never hides the product.
+      return ctx.json({
+        product: data,
+        reviews: reviews || [],
+        stats: (stats.data as Record<string, unknown> | null)?.[data.id] ?? null,
+        activity: activity.error ? [] : activity.data || [],
+      });
     }
     if (route === "creators" && req.method === "GET") {
       if (!ready(c)) {
@@ -174,7 +240,101 @@ export async function marketApi(req: Request, c: Config) {
         .eq("status", "published")
         .limit(100);
       check(pe);
-      return ctx.json({ profile, products });
+      const market = admin(c);
+      const [stats, activity] = await Promise.all([
+        market.rpc("market_creator_stats", { p_seller: profile.id }),
+        market.rpc("market_activity", {
+          p_product: null,
+          p_seller: profile.id,
+          p_limit: 25,
+        }),
+      ]);
+      return ctx.json({
+        profile,
+        products,
+        stats: stats.error ? null : stats.data,
+        activity: activity.error ? [] : activity.data || [],
+      });
+    }
+    if (path[0] === "market" && path.length === 2 && req.method === "GET") {
+      const range = marketRange(url.searchParams.get("range"));
+      const limit = Math.max(
+        1,
+        Math.min(100, Number(url.searchParams.get("limit")) || 30),
+      );
+      if (!ready(c)) {
+        // Preview mode: an empty, honest market instead of invented numbers.
+        if (path[1] === "overview")
+          return ctx.json({
+            overview: emptyOverview(range.days),
+            range: range.key,
+            demo: true,
+          });
+        if (["activity", "leaderboard", "trending"].includes(path[1]))
+          return ctx.json({
+            [path[1] === "trending" ? "products" : path[1] === "activity" ? "events" : "creators"]: [],
+            range: range.key,
+            demo: true,
+          });
+      }
+      const market = admin(c);
+      if (path[1] === "overview") {
+        const { data, error } = await market.rpc("market_overview", {
+          p_days: range.days,
+        });
+        check(error);
+        return ctx.json({ overview: data, range: range.key });
+      }
+      if (path[1] === "activity") {
+        const { data, error } = await market.rpc("market_activity", {
+          p_product: null,
+          p_seller: null,
+          p_limit: limit,
+        });
+        check(error);
+        return ctx.json({ events: data || [] });
+      }
+      if (path[1] === "leaderboard") {
+        const { data, error } = await market.rpc("market_leaderboard", {
+          p_days: range.days,
+          p_limit: Math.min(limit, 50),
+        });
+        check(error);
+        return ctx.json({ creators: data || [], range: range.key });
+      }
+      if (path[1] === "trending") {
+        const { data: ranked, error } = await market.rpc("market_trending", {
+          p_days: range.days,
+          p_limit: Math.min(limit, 24),
+        });
+        check(error);
+        const rows = (ranked || []) as {
+          id: string;
+          acquisitions: number;
+          volume_cents: number;
+          favorites: number;
+          offers: number;
+        }[];
+        if (!rows.length) return ctx.json({ products: [], range: range.key });
+        const { data: products, error: pe } = await ctx
+          .client!.from("products")
+          .select(publicFields)
+          .eq("status", "published")
+          .in(
+            "id",
+            rows.map((r) => r.id),
+          );
+        check(pe);
+        const byId = new Map(
+          ((products || []) as unknown as { id: string }[]).map((p) => [p.id, p]),
+        );
+        return ctx.json({
+          products: rows
+            .filter((r) => byId.has(r.id))
+            .map((r) => ({ ...byId.get(r.id), market: r })),
+          range: range.key,
+        });
+      }
     }
     if (route === "me" && req.method === "GET") {
       if (!ctx.client) return ctx.json({ user: null });
@@ -197,11 +357,35 @@ export async function marketApi(req: Request, c: Config) {
             .eq("user_id", u.id)
             .maybeSingle(),
         ]);
+      let isAdmin = !!role;
+      // The owner's mailbox is the trust anchor: a confirmed address listed in
+      // MARKET_ADMIN_EMAILS becomes a moderator; browsers cannot grant this.
+      if (
+        !isAdmin &&
+        u.email &&
+        u.email_confirmed_at &&
+        adminEmails(c).includes(u.email.toLowerCase())
+      ) {
+        const { error } = await db
+          .from("market_admins")
+          .upsert(
+            { user_id: u.id },
+            { onConflict: "user_id", ignoreDuplicates: true },
+          );
+        if (!error) {
+          isAdmin = true;
+          await db.from("audit_log").insert({
+            actor: u.id,
+            action: "admin.bootstrap",
+            target: u.id,
+          });
+        }
+      }
       return ctx.json({
         user: { id: u.id, email: u.email },
         profile,
         seller,
-        isAdmin: !!role,
+        isAdmin,
       });
     }
     if (route.startsWith("auth/")) {
@@ -222,7 +406,7 @@ export async function marketApi(req: Request, c: Config) {
         const { data, error } = await ctx.client!.auth.signInWithOAuth({
           provider: "github",
           options: {
-            redirectTo: siteOrigin(c) + "/api/auth/callback",
+            redirectTo: siteOrigin(c, req) + "/api/auth/callback",
             skipBrowserRedirect: true,
           },
         });
@@ -259,8 +443,13 @@ export async function marketApi(req: Request, c: Config) {
         const { email } = z
           .object({ email: z.string().email() })
           .parse(await parseBody(req));
+        // Email templates link to the server callback with a token hash; the
+        // PKCE fallback (default templates) also returns through the callback.
         await ctx.client!.auth.resetPasswordForEmail(email, {
-          redirectTo: siteOrigin(c) + "/settings?reset=1",
+          redirectTo:
+            siteOrigin(c, req) +
+            "/api/auth/callback?next=" +
+            encodeURIComponent("/settings?reset=1"),
         });
         return ctx.json({
           message:
@@ -286,7 +475,7 @@ export async function marketApi(req: Request, c: Config) {
           password: b.password,
           options: {
             data: { display_name: b.display_name || "Développeur" },
-            emailRedirectTo: siteOrigin(c) + "/api/auth/callback",
+            emailRedirectTo: siteOrigin(c, req) + "/api/auth/callback",
           },
         });
         if (error)
@@ -470,7 +659,161 @@ export async function marketApi(req: Request, c: Config) {
           );
         return ctx.json({ ok: true });
       }
-      if (path[2] === "cover" && req.method === "POST") {
+      if (path.length === 3 && path[2] === "price" && req.method === "POST") {
+        const b = z
+          .object({ price_cents: z.number().int().min(0).max(1000000) })
+          .strict()
+          .parse(await parseBody(req));
+        const { error } = await db.rpc("market_set_price", {
+          p_id: id,
+          p_seller: u.id,
+          p_price: b.price_cents,
+        });
+        failOn(error, [
+          [
+            /reviewed products/,
+            409,
+            "Le prix d’un brouillon se modifie dans l’éditeur.",
+          ],
+          [/not owned/, 404, "Produit introuvable."],
+          [/Invalid price/, 400, "Prix invalide."],
+        ]);
+        return ctx.json({ ok: true, price_cents: b.price_cents });
+      }
+      if (
+        path.length === 3 &&
+        path[2] === "listing" &&
+        req.method === "POST"
+      ) {
+        const b = z
+          .object({ action: z.enum(["pause", "resume"]) })
+          .strict()
+          .parse(await parseBody(req));
+        const { error } = await db.rpc("market_set_listing", {
+          p_id: id,
+          p_seller: u.id,
+          p_action: b.action,
+        });
+        failOn(error, [
+          [
+            /Review required/,
+            409,
+            "Cette version doit être validée avant de revenir dans le catalogue.",
+          ],
+          [/published listing/, 409, "Seule une annonce en ligne peut être mise en pause."],
+          [/paused listing/, 409, "Cette annonce n’est pas en pause."],
+          [/not owned/, 404, "Produit introuvable."],
+        ]);
+        return ctx.json({ ok: true, status: b.action === "pause" ? "archived" : "published" });
+      }
+      // Packages go straight from the browser to private Storage with a
+      // one-time signed URL, then the server verifies them before attaching.
+      if (
+        path.length === 4 &&
+        path[2] === "file" &&
+        path[3] === "upload" &&
+        req.method === "POST"
+      ) {
+        if (!["draft", "rejected"].includes(p.status))
+          throw new HttpError(
+            409,
+            "Repassez le produit en brouillon avant de remplacer son fichier.",
+          );
+        const b = z
+          .object({
+            name: z.string().trim().min(5).max(200),
+            size: z.number().int().min(1).max(20971520),
+          })
+          .strict()
+          .parse(await parseBody(req));
+        const lower = b.name.toLowerCase();
+        const ext = lower.endsWith(".zip")
+          ? "zip"
+          : lower.endsWith(".json")
+            ? "json"
+            : null;
+        if (!ext)
+          throw new HttpError(
+            400,
+            "Seuls les fichiers ZIP et JSON sont acceptés.",
+          );
+        const storagePath = `${u.id}/${id}/${crypto.randomUUID()}.${ext}`;
+        const { data, error } = await db.storage
+          .from("agent-packages")
+          .createSignedUploadUrl(storagePath);
+        check(error, "Le transfert du fichier n’a pas pu être préparé.");
+        return ctx.json({
+          url: data!.signedUrl,
+          path: storagePath,
+          contentType: ext === "zip" ? "application/zip" : "application/json",
+        });
+      }
+      if (
+        path.length === 4 &&
+        path[2] === "file" &&
+        path[3] === "attach" &&
+        req.method === "POST"
+      ) {
+        if (!["draft", "rejected"].includes(p.status))
+          throw new HttpError(
+            409,
+            "Repassez le produit en brouillon avant de remplacer son fichier.",
+          );
+        const b = z
+          .object({
+            path: z.string().max(300),
+            name: z.string().trim().min(1).max(200),
+          })
+          .strict()
+          .parse(await parseBody(req));
+        if (!packagePath(u.id, id, b.path))
+          throw new HttpError(400, "Fichier de package invalide.");
+        const bucket = db.storage.from("agent-packages");
+        const { data: blob, error: de } = await bucket.download(b.path);
+        if (de || !blob)
+          throw new HttpError(
+            400,
+            "Le fichier transféré est introuvable. Recommencez le transfert.",
+          );
+        const bytes = await blob.arrayBuffer();
+        const ext = b.path.endsWith(".zip") ? "zip" : "json";
+        let sha = "";
+        try {
+          if (bytes.byteLength < 1 || bytes.byteLength > 20971520)
+            throw new HttpError(
+              400,
+              "Ajoutez un ZIP ou un manifeste JSON, de 20 Mo maximum.",
+            );
+          inspectPackage(bytes, ext);
+          sha = await sha256(bytes);
+        } catch (e) {
+          await bucket.remove([b.path]);
+          throw e;
+        }
+        const { error: saveError } = await db.rpc("market_attach_file", {
+          p_id: id,
+          p_seller: u.id,
+          p_path: b.path,
+          p_name: b.name.slice(0, 200),
+          p_size: bytes.byteLength,
+          p_sha: sha,
+          p_version: p.version,
+        });
+        if (saveError) {
+          await bucket.remove([b.path]);
+          throw new HttpError(
+            409,
+            "Le produit a changé pendant le transfert. Enregistrez le brouillon et recommencez.",
+          );
+        }
+        return ctx.json({
+          ok: true,
+          name: b.name,
+          size: bytes.byteLength,
+          sha256: sha,
+        });
+      }
+      if (path.length === 3 && path[2] === "cover" && req.method === "POST") {
         const form = await req.formData();
         const file = form.get("file");
         if (!(file instanceof File) || file.size < 12 || file.size > 3145728)
@@ -527,7 +870,7 @@ export async function marketApi(req: Request, c: Config) {
         }
         return ctx.json({ url: image.publicUrl });
       }
-      if (path[2] === "file" && req.method === "POST") {
+      if (path.length === 3 && path[2] === "file" && req.method === "POST") {
         if (!["draft", "rejected"].includes(p.status))
           throw new HttpError(
             409,
@@ -636,8 +979,8 @@ export async function marketApi(req: Request, c: Config) {
       }
       const link = await st.accountLinks.create({
         account: seller.stripe_account_id,
-        refresh_url: siteOrigin(c) + "/studio?connect=refresh",
-        return_url: siteOrigin(c) + "/studio?connect=returned",
+        refresh_url: siteOrigin(c, req) + "/studio?connect=refresh",
+        return_url: siteOrigin(c, req) + "/studio?connect=returned",
         type: "account_onboarding",
       });
       return ctx.json({ url: link.url });
@@ -680,7 +1023,11 @@ export async function marketApi(req: Request, c: Config) {
           "Les achats ouvriront au lancement du marketplace.",
         );
       const b = z
-        .object({ product_id: uuid, license_accepted: z.literal(true) })
+        .object({
+          product_id: uuid,
+          license_accepted: z.literal(true),
+          offer_id: uuid.optional(),
+        })
         .parse(await parseBody(req));
       const { data: p, error } = await db
         .from("products")
@@ -700,6 +1047,28 @@ export async function marketApi(req: Request, c: Config) {
           409,
           "Le fichier de cette version n’est pas disponible.",
         );
+      // The amount is always decided here: the listing price, or an offer the
+      // seller accepted for this buyer (never above the current price).
+      let amount: number = p.price_cents;
+      let offerId: string | null = null;
+      if (b.offer_id) {
+        const { data: offer, error: oe } = await db
+          .from("offers")
+          .select("id,product_id,buyer_id,amount_cents,status,expires_at")
+          .eq("id", b.offer_id)
+          .eq("buyer_id", u.id)
+          .maybeSingle();
+        check(oe);
+        if (!offer || offer.product_id !== p.id)
+          throw new HttpError(404, "Offre introuvable.");
+        if (offer.status !== "accepted" || offerExpired(offer))
+          throw new HttpError(
+            409,
+            "Cette offre n’est plus payable. Faites une nouvelle offre.",
+          );
+        amount = Math.min(offer.amount_cents, p.price_cents);
+        offerId = offer.id;
+      }
       const { data: existing, error: ee } = await db
         .from("orders")
         .select("*")
@@ -710,20 +1079,48 @@ export async function marketApi(req: Request, c: Config) {
       check(ee);
       if (existing && existing.status !== "pending")
         return ctx.json({ url: "/library" });
-      if (p.price_cents > 0 && !paymentsReady(c))
+      if (amount > 0 && !paymentsReady(c))
         throw new HttpError(503, "Les paiements ne sont pas encore ouverts.");
-      const bps = Number(c.PLATFORM_FEE_BPS);
-      if (
-        !c.PLATFORM_FEE_BPS ||
-        !Number.isInteger(bps) ||
-        bps < 0 ||
-        bps > 3000
-      )
-        throw new HttpError(
-          503,
-          "La commission du marketplace doit être configurée.",
-        );
+      let fee = 0;
+      if (amount > 0) {
+        const bps = Number(c.PLATFORM_FEE_BPS);
+        if (
+          !c.PLATFORM_FEE_BPS ||
+          !Number.isInteger(bps) ||
+          bps < 0 ||
+          bps > 3000
+        )
+          throw new HttpError(
+            503,
+            "La commission du marketplace doit être configurée.",
+          );
+        fee = platformFee(amount, bps);
+      }
       let order = existing;
+      if (
+        order &&
+        (order.amount_cents !== amount || (order.offer_id ?? null) !== offerId)
+      ) {
+        // A different amount was agreed since this checkout began: close the
+        // previous session so the buyer can never pay the stale amount.
+        if (order.stripe_session_id) {
+          const st = stripe(c);
+          const previous = await st.checkout.sessions.retrieve(
+            order.stripe_session_id,
+          );
+          if (previous.payment_status === "paid")
+            return ctx.json({ url: "/library?payment=processing" });
+          if (previous.status === "open")
+            await st.checkout.sessions.expire(order.stripe_session_id);
+        }
+        const { error: xe } = await db
+          .from("orders")
+          .update({ status: "expired" })
+          .eq("id", order.id)
+          .eq("status", "pending");
+        check(xe);
+        order = null;
+      }
       if (!order) {
         const { data, error } = await db
           .from("orders")
@@ -736,11 +1133,12 @@ export async function marketApi(req: Request, c: Config) {
             license: p.license,
             storage_path: f.storage_path,
             file_sha256: f.sha256,
-            amount_cents: p.price_cents,
-            fee_cents: platformFee(p.price_cents, bps),
+            amount_cents: amount,
+            fee_cents: fee,
             currency: "cad",
-            status: p.price_cents === 0 ? "paid" : "pending",
-            paid_at: p.price_cents === 0 ? new Date().toISOString() : null,
+            offer_id: offerId,
+            status: amount === 0 ? "paid" : "pending",
+            paid_at: amount === 0 ? new Date().toISOString() : null,
           })
           .select()
           .single();
@@ -813,9 +1211,9 @@ export async function marketApi(req: Request, c: Config) {
           },
           billing_address_collection: "required",
           automatic_tax: { enabled: c.STRIPE_TAX_ENABLED === "true" },
-          success_url: siteOrigin(c) + "/library?payment=processing",
+          success_url: siteOrigin(c, req) + "/library?payment=processing",
           cancel_url:
-            siteOrigin(c) + "/agents/" + p.slug + "?checkout=cancelled",
+            siteOrigin(c, req) + "/agents/" + p.slug + "?checkout=cancelled",
         },
         { idempotencyKey: "checkout-" + order.id },
       );
@@ -897,6 +1295,117 @@ export async function marketApi(req: Request, c: Config) {
         .single();
       check(error);
       return ctx.json({ id: data?.id });
+    }
+    if (route === "offers" && req.method === "GET") {
+      const seller = url.searchParams.get("role") === "seller";
+      // Explicit relationship names: orders also links offers to products/profiles.
+      const { data, error } = await db
+        .from("offers")
+        .select(
+          "id,product_id,amount_cents,list_cents,message,status,expires_at,responded_at,created_at," +
+            "product:products!offers_product_id_fkey(title,slug,price_cents,status,kind)," +
+            (seller
+              ? "counterpart:profiles!offers_buyer_id_fkey(display_name,username)"
+              : "counterpart:profiles!offers_seller_id_fkey(display_name,username)"),
+        )
+        .eq(seller ? "seller_id" : "buyer_id", u.id)
+        .order("created_at", { ascending: false })
+        .limit(60);
+      check(error);
+      return ctx.json({
+        offers: ((data || []) as unknown as {
+          status: string;
+          expires_at: string;
+        }[]).map((o) => (offerExpired(o) ? { ...o, status: "expired" } : o)),
+      });
+    }
+    if (route === "offers" && req.method === "POST") {
+      if (!paymentsReady(c))
+        throw new HttpError(
+          503,
+          "Les offres ouvriront avec les paiements.",
+          "payments_unavailable",
+        );
+      await rateLimit(db, req, "offer:" + u.id, 10, 600);
+      const b = z
+        .object({
+          product_id: uuid,
+          amount_cents: z.number().int().min(100).max(1000000),
+          message: z.string().trim().max(500).default(""),
+        })
+        .strict()
+        .parse(await parseBody(req));
+      const { data, error } = await db.rpc("market_make_offer", {
+        p_product: b.product_id,
+        p_buyer: u.id,
+        p_amount: b.amount_cents,
+        p_message: b.message,
+      });
+      failOn(error, [
+        [/23505/, 409, "Vous avez déjà une offre active pour ce produit."],
+        [
+          /below the listing price/,
+          400,
+          "Votre offre doit être inférieure au prix demandé. Au prix affiché, achetez directement.",
+        ],
+        [
+          /too low/,
+          400,
+          "Offre trop basse : proposez au moins 20 % du prix demandé.",
+        ],
+        [/Already owned/, 409, "Ce produit est déjà dans vos acquisitions."],
+        [/Own product/, 400, "Vous êtes le créateur de ce produit."],
+        [
+          /Free product/,
+          400,
+          "Ce produit est gratuit : ajoutez-le directement à vos acquisitions.",
+        ],
+        [/unavailable/, 404, "Ce produit n’est plus disponible."],
+        [
+          /Too many open offers/,
+          429,
+          "Vous avez trop d’offres en attente. Retirez-en avant d’en faire de nouvelles.",
+        ],
+      ]);
+      return ctx.json({ id: data }, 201);
+    }
+    if (path[0] === "offers" && path.length === 3 && req.method === "POST") {
+      const id = uuid.parse(path[1]);
+      if (path[2] === "respond") {
+        const b = z
+          .object({ action: z.enum(["accept", "decline"]) })
+          .strict()
+          .parse(await parseBody(req));
+        const { error } = await db.rpc("market_respond_offer", {
+          p_offer: id,
+          p_seller: u.id,
+          p_action: b.action,
+        });
+        failOn(error, [
+          [/not found/, 404, "Offre introuvable."],
+          [/closed/, 409, "Cette offre n’est plus en attente."],
+          [
+            /unavailable/,
+            409,
+            "Remettez l’annonce en ligne avant d’accepter une offre.",
+          ],
+        ]);
+        return ctx.json({
+          ok: true,
+          status: b.action === "accept" ? "accepted" : "declined",
+        });
+      }
+      if (path[2] === "withdraw") {
+        const { error } = await db.rpc("market_withdraw_offer", {
+          p_offer: id,
+          p_buyer: u.id,
+        });
+        failOn(error, [
+          [/not found/, 404, "Offre introuvable."],
+          [/closed/, 409, "Cette offre est déjà close."],
+        ]);
+        return ctx.json({ ok: true, status: "withdrawn" });
+      }
     }
     if (path[0] === "admin") {
       await requireAdmin(db, u.id);

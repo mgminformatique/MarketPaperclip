@@ -32,6 +32,7 @@ before(async () => {
     "004_public_column_grants.sql",
     "005_seller_statistics.sql",
     "006_product_covers.sql",
+    "007_market_exchange.sql",
   ])
     await db.exec(
       await readFile(
