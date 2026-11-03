@@ -24,16 +24,21 @@ Décisions qui remplacent le handoff du 1er novembre :
 
 Recette de bout en bout sur une **pile Supabase locale** (Postgres 17.11, Auth, Storage, Mailpit) avec le build Netlify de production et Chromium : 40 vérifications de parcours, 37 vérifications de sécurité, aucune erreur console. Détail dans [ACCEPTANCE.md](ACCEPTANCE.md). Les scripts de recette ne sont pas dans le dépôt (outillage local de session).
 
-## Production — rien n’a encore été modifié
+## Production — état au 3 novembre 2026, avec l’accord du propriétaire
 
-Le classificateur de la session a bloqué l’application de la migration en production : chaque action distante attend l’accord explicite du propriétaire. Ordre prévu (commandes exactes dans [NETLIFY.md](NETLIFY.md)) :
+Fait :
+1. Migration `007_market_exchange.sql` appliquée sur `ltommtumsvvqxdknpkfd` (historique 001→007; RLS active sur `offers` et `market_events`; aucune fonction du marché exécutable par `anon`). Base encore vide.
+2. Auth poussée avec `supabase config push` : Site URL `https://marketpaperclip.com`, redirections www/netlify.app/aperçus, modèles FR/EN, mot de passe minimum 12. `supabase config diff` ne montre plus d’écart sur les propriétés déclarées.
+3. Site Netlify `marketpaperclip` (ID `4911687f-987b-4363-9982-50078b56f9ef`, équipe `info-oxcsesk`), variables posées par `scripts/netlify-configure.mjs` (clé secrète Supabase marquée secrète; `MARKET_ADMIN_EMAILS=info@mgminformatique.ca`; `LAUNCH_READY=false`; paiements fermés), fonctions en **us-west-2** (même région que Supabase).
+4. Déploiement de production `6ae9b39266c8156e12f60119` (commit `91819c4`) : état *ready*, 1 fonction Node 24. URL : https://marketpaperclip.netlify.app.
+5. `marketpaperclip.com` et `www.marketpaperclip.com` déclarés comme domaines du site Netlify.
 
-1. `supabase db push` de la migration 007 (base distante vide au 2 novembre : 0 utilisateur, 0 produit).
-2. `supabase config push` (Site URL encore à `http://localhost:3000`, aucune redirection autorisée, mot de passe minimum 6).
-3. Création du site Netlify `marketpaperclip`, variables via `scripts/netlify-configure.mjs`, déploiement.
-4. DNS GoDaddy : A `@` → `75.2.60.5`, CNAME `www` → `marketpaperclip.netlify.app` (API GoDaddy non connectée : `mgm auth godaddy` ou interface GoDaddy).
-5. SMTP Supabase (les courriels par défaut ne partent qu’aux membres de l’organisation).
-6. Stripe : clés et webhook saisis par le propriétaire dans Netlify, puis `LAUNCH_READY`/`PAYMENTS_ENABLED`, recette en mode TEST.
+Choix du propriétaire : **le site reste protégé** par la connexion d’équipe Netlify (politique d’équipe `site_sso_login`, contexte « all »). Le public voit une page de connexion Netlify; la recette HTTP en ligne n’a donc pas été faite depuis le poste. Les webhooks Stripe ne pourront pas atteindre un site protégé : ouvrir l’accès avant d’activer les paiements.
+
+Reste à faire :
+- DNS GoDaddy : A `@` → `75.2.60.5`, CNAME `www` → `marketpaperclip.netlify.app` (API GoDaddy non connectée : `mgm auth godaddy` ou interface GoDaddy). Tant que le DNS n’est pas basculé, les liens des courriels Auth (Site URL) mènent à la page de parking GoDaddy.
+- SMTP Supabase avant les inscriptions publiques; clés et webhook Stripe dans Netlify; accès public du site au lancement.
+- Branche `feature/marche-netlify` encore locale (non poussée sur GitHub).
 
 ## Accès disponibles sur le poste
 
