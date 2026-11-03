@@ -33,10 +33,14 @@ Fait :
 4. Déploiement de production `6ae9b39266c8156e12f60119` (commit `91819c4`) : état *ready*, 1 fonction Node 24. URL : https://marketpaperclip.netlify.app.
 5. `marketpaperclip.com` et `www.marketpaperclip.com` déclarés comme domaines du site Netlify.
 
-Choix du propriétaire : **le site reste protégé** par la connexion d’équipe Netlify (politique d’équipe `site_sso_login`, contexte « all »). Le public voit une page de connexion Netlify; la recette HTTP en ligne n’a donc pas été faite depuis le poste. Les webhooks Stripe ne pourront pas atteindre un site protégé : ouvrir l’accès avant d’activer les paiements.
+Mise à jour du 3 novembre (matin), avec l’accord du propriétaire :
+- **Production publique** : protection d’équipe limitée aux déploiements hors production (`sso_login_context=non_production`). `*.netlify.app` répond avec `X-Robots-Tag: noindex`; seule l’origine `SITE_URL` est indexable.
+- **SEO déployé** (déploiement `6ae9d7a88f026e0314f1fda2`, commit `8354e6a`) : voir [SEO.md](SEO.md). Lighthouse en ligne : performance 94–96, SEO 100 sur l’origine canonique (mesuré localement), 66–69 sur netlify.app à cause du `noindex` voulu.
+- Les inscriptions publiques sont possibles mais les courriels de confirmation ne partent qu’aux membres de l’organisation Supabase tant que le SMTP n’est pas configuré.
 
 Reste à faire :
-- DNS GoDaddy : A `@` → `75.2.60.5`, CNAME `www` → `marketpaperclip.netlify.app` (API GoDaddy non connectée : `mgm auth godaddy` ou interface GoDaddy). Tant que le DNS n’est pas basculé, les liens des courriels Auth (Site URL) mènent à la page de parking GoDaddy.
+- DNS GoDaddy : A `@` → `75.2.60.5`, CNAME `www` → `marketpaperclip.netlify.app` (API GoDaddy non connectée; le 3 novembre au matin, les serveurs GoDaddy renvoyaient encore le parking). Tant que le DNS n’est pas basculé, les liens des courriels Auth (Site URL) mènent à la page de parking GoDaddy.
+- Après le DNS : Search Console (TXT de vérification chez GoDaddy, sitemap), Bing Webmaster, `node scripts/indexnow.mjs`.
 - SMTP Supabase avant les inscriptions publiques; clés et webhook Stripe dans Netlify; accès public du site au lancement.
 - Branche `feature/marche-netlify` encore locale (non poussée sur GitHub).
 
