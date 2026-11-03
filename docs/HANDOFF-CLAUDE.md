@@ -39,8 +39,8 @@ Mise à jour du 3 novembre (matin), avec l’accord du propriétaire :
 - Courriels Auth : envoyés par Microsoft 365 (info@mgminformatique.ca, Microsoft Graph) via le crochet Supabase Send Email et la fonction `send-email`, comme ChantierConnect — voir [COURRIELS_MICROSOFT.md](COURRIELS_MICROSOFT.md). Configuration Auth : uniquement `node scripts/supabase-config-push.mjs`. Les liens suivent l’origine de l’inscription (netlify.app fonctionne avant la bascule DNS).
 
 Reste à faire :
-- DNS GoDaddy : A `@` → `75.2.60.5`, CNAME `www` → `marketpaperclip.netlify.app` (API GoDaddy non connectée; le 3 novembre au matin, les serveurs GoDaddy renvoyaient encore le parking). Tant que le DNS n’est pas basculé, les liens des courriels Auth (Site URL) mènent à la page de parking GoDaddy.
-- Après le DNS : Search Console (TXT de vérification chez GoDaddy, sitemap), Bing Webmaster, `node scripts/indexnow.mjs`.
+- **Domaine en service (3 novembre 2026)** : DNS GoDaddy A `@` → `75.2.60.5`, CNAME `www` → `marketpaperclip.netlify.app`; certificat Let’s Encrypt émis par Netlify pour `marketpaperclip.com` et `www`. `https://marketpaperclip.com` répond (HSTS), `www` et `http` redirigent en 301 vers lui; `marketpaperclip.netlify.app` reste servi avec `noindex`. Connexion vérifiée dans Firefox sur le domaine.
+- SEO : `node scripts/indexnow.mjs` (refuse d’envoyer un sitemap qui n’est pas celui du site, p. ex. pendant qu’un cache DNS sert encore le parking GoDaddy); reste Search Console (TXT de vérification chez GoDaddy, sitemap) et Bing Webmaster.
 - Clés et webhook Stripe dans Netlify; restreindre « MarketPaperclip Courriels » à la boîte info@ (RBAC Exchange pour les applications).
 - Branche `feature/marche-netlify` encore locale (non poussée sur GitHub).
 

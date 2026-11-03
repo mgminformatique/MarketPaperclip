@@ -9,6 +9,10 @@ if (!sitemap.ok) throw new Error(`Sitemap unavailable (HTTP ${sitemap.status}). 
 const urls = [...(await sitemap.text()).matchAll(/<loc>([^<]+)<\/loc>/g)]
   .map((m) => m[1].replace(/&amp;/g, "&"))
   .slice(0, 10000);
+// A resolver still caching the former DNS (e.g. the registrar's parking page)
+// serves someone else's sitemap: submit nothing rather than foreign URLs.
+if (!urls.includes(`https://${host}/`))
+  throw new Error(`The sitemap served for ${host} is not MarketPaperclip's (DNS cache still pointing elsewhere?). Nothing submitted.`);
 const response = await fetch("https://api.indexnow.org/indexnow", {
   method: "POST",
   headers: { "content-type": "application/json; charset=utf-8" },

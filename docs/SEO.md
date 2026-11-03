@@ -20,8 +20,8 @@ Lighthouse (local, 3 novembre 2026) : **SEO 100/100** sur l'accueil, une fiche, 
 
 ## Rendre le site trouvable — dans cet ordre
 
-1. **Ouvrir l'accès public de la production** sur Netlify (la protection d'équipe empêche tout robot de lire le site).
-2. **DNS** chez GoDaddy (voir [NETLIFY.md](NETLIFY.md)) et attendre le certificat HTTPS de `marketpaperclip.com`.
+1. ~~Ouvrir l'accès public de la production~~ — fait le 3 novembre 2026.
+2. ~~DNS chez GoDaddy et certificat HTTPS~~ — faits le 3 novembre 2026 (voir [NETLIFY.md](NETLIFY.md)).
 3. **Google Search Console** : propriété « Domaine » `marketpaperclip.com`, vérifiée par l'enregistrement TXT que Google fournit (à ajouter dans la zone DNS GoDaddy). Puis *Sitemaps* → `https://marketpaperclip.com/sitemap.xml`, et *Inspection de l'URL* → *Demander l'indexation* pour l'accueil, `/market`, `/agents`, `/bundles`. Variante sans DNS : méta-balise via la variable Netlify `GOOGLE_SITE_VERIFICATION`.
 4. **Bing Webmaster Tools** : importer la propriété depuis Search Console (ou `BING_SITE_VERIFICATION`). Bing alimente aussi DuckDuckGo, Yahoo et Copilot.
 5. **IndexNow** (Bing, Yandex, Seznam, Naver) : `node scripts/indexnow.mjs` une fois le site public, puis après chaque série de publications.
