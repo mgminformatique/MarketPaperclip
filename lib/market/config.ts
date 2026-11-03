@@ -1,4 +1,4 @@
-import { paymentsReady, type Config } from "./server";
+import { paymentsReady, pricesVisible, type Config } from "./server";
 export function publicConfig(c: Config) {
   const accounts = !!(
     c.SUPABASE_URL &&
@@ -10,6 +10,9 @@ export function publicConfig(c: Config) {
     payments: paymentsReady(c),
     demo: !accounts,
     github: c.GITHUB_AUTH_ENABLED === "true",
+    // Free acquisitions only need the launch gate, not Stripe.
+    launched: accounts && c.LAUNCH_READY === "true",
+    prices: pricesVisible(c),
     feeBps:
       c.PLATFORM_FEE_BPS &&
       Number.isInteger(Number(c.PLATFORM_FEE_BPS)) &&

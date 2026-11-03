@@ -20,6 +20,13 @@ export type Config = {
   GITHUB_AUTH_ENABLED?: string;
   STRIPE_TAX_ENABLED?: string;
   LAUNCH_READY?: string;
+  // Prices are shown unless explicitly hidden ("false").
+  SHOW_PRICES?: string;
+  // Comma-separated confirmed emails promoted to moderators on sign-in.
+  MARKET_ADMIN_EMAILS?: string;
+  // Comma-separated extra HTTPS origins serving this same deployment, e.g.
+  // https://www.marketpaperclip.com,https://*--marketpaperclip.netlify.app
+  SITE_ALIASES?: string;
 };
 const publishableKey = (c: Config) =>
   c.SUPABASE_PUBLISHABLE_KEY || c.SUPABASE_ANON_KEY;
@@ -141,7 +148,11 @@ export async function rateLimit(
   limit = 20,
   seconds = 60,
 ) {
-  const ip = req.headers.get("cf-connecting-ip") || "local";
+  // x-market-client-ip is overwritten by the Worker entry from platform data.
+  const ip =
+    req.headers.get("x-market-client-ip") ||
+    req.headers.get("cf-connecting-ip") ||
+    "local";
   const hash = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(ip + ":" + key),
@@ -189,11 +200,43 @@ export function check(
 ) {
   if (error) throw new HttpError(500, message);
 }
-export function siteOrigin(c: Config) {
+function aliasMatches(pattern: string, origin: string) {
+  const p = pattern.trim().replace(/\/+$/, "");
+  if (!p.startsWith("https://")) return false;
+  if (!p.includes("*")) return p === origin;
+  // A single leading wildcard label, e.g. https://*--site.netlify.app
+  const m = p.match(/^https:\/\/\*([a-z0-9.-]+)$/i);
+  if (!m) return false;
+  const host = origin.slice("https://".length);
+  return (
+    origin.startsWith("https://") &&
+    host.toLowerCase().endsWith(m[1].toLowerCase()) &&
+    /^[a-z0-9-]+$/i.test(host.slice(0, host.length - m[1].length))
+  );
+}
+export function siteOrigin(c: Config, req?: Request) {
   if (!c.SITE_URL)
     throw new HttpError(503, "L’adresse du marketplace doit être configurée.");
   const u = new URL(c.SITE_URL);
   if (u.protocol !== "https:" && u.hostname !== "localhost")
     throw new HttpError(503, "Adresse de déploiement invalide.");
+  if (req && c.SITE_ALIASES) {
+    // Keep visitors on the origin they used when it is a declared alias.
+    const origin = new URL(req.url).origin;
+    if (
+      origin !== u.origin &&
+      c.SITE_ALIASES.split(",").some((a) => aliasMatches(a, origin))
+    )
+      return origin;
+  }
   return u.origin;
+}
+export function pricesVisible(c: Config) {
+  return c.SHOW_PRICES !== "false";
+}
+export function adminEmails(c: Config) {
+  return (c.MARKET_ADMIN_EMAILS || "")
+    .split(",")
+    .map((v) => v.trim().toLowerCase())
+    .filter((v) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v));
 }
