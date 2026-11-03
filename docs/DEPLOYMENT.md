@@ -28,7 +28,7 @@ Les variables peuvent être configurées dans les secrets d’environnement du S
 1. Créer un projet dédié, activer les sauvegardes adaptées à l’exploitation.
 2. Appliquer, dans l’ordre, les sept migrations SQL du dossier `supabase/migrations/` (`007_market_exchange.sql` ajoute le marché utilisateur).
 3. Vérifier que le bucket `agent-packages` est privé. N’ajouter aucune politique de lecture publique pour les packages sur `storage.objects`. Le bucket `product-covers` est, lui, public pour les images de présentation; ses écritures passent uniquement par le serveur.
-4. Activer la confirmation obligatoire du courriel et configurer un SMTP de production.
+4. Activer la confirmation obligatoire du courriel; les courriels partent par Microsoft 365 (voir `COURRIELS_MICROSOFT.md`).
 5. Configurer `Site URL` et les URLs de redirection autorisées :
    - `https://marketpaperclip.com/api/auth/callback`
    - `https://marketpaperclip.com/settings`

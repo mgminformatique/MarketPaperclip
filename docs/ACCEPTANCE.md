@@ -22,7 +22,7 @@ Environnement : build de production Netlify (`netlify serve`) branché sur une p
 - **Sécurité, 37 vérifications** : un utilisateur ne peut modifier, mettre en pause, re-tarifer ni téléverser sur le produit d'un autre ; un package téléversé par un autre ne peut être rattaché ; une URL d'upload signée ne peut écraser un objet ; l'API REST publique (clé publishable) ne lit ni offres, ni événements bruts, ni commandes, ni comptes vendeurs, ni journaux, ni brouillons, ni notes de modération, et ne peut appeler aucune fonction serveur ; packages privés inaccessibles ; écritures cross-origin refusées ; JSON surdimensionné refusé ; en-têtes de sécurité et cookies HttpOnly/SameSite ; limitation des tentatives de connexion.
 - Lint : aucune nouvelle erreur par rapport à l'état d'origine (45 erreurs préexistantes).
 
-Restent à vérifier sur les services réels : livraison des courriels à des adresses hors organisation Supabase (SMTP), achat Stripe en mode TEST de bout en bout, DNS/TLS de marketpaperclip.com, comportement du CDN Netlify en production.
+Courriels réels (3 novembre 2026) : envoi par Microsoft 365 via le crochet Send Email; courriel de test signé et inscription réelle sur netlify.app acceptés. Restent à vérifier sur les services réels : réception dans des boîtes externes (Gmail, Outlook.com), achat Stripe en mode TEST de bout en bout, DNS/TLS de marketpaperclip.com, comportement du CDN Netlify en production.
 
 ## Recette à exécuter sur les services configurés
 

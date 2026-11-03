@@ -51,7 +51,7 @@ console.log(
   `INFO prices ${process.env.SHOW_PRICES === "false" ? "hidden" : "shown"}; launch ${process.env.LAUNCH_READY === "true" ? "open (free acquisitions)" : "closed"}; payments ${process.env.PAYMENTS_ENABLED === "true" ? "enabled" : "disabled"}`,
 );
 console.log(
-  "REVIEW Apply all migrations (001-007), verify SMTP and redirects, Stripe Connect/webhook, DNS and terms.",
+  "REVIEW Apply all migrations (001-007), verify the Microsoft 365 email hook (docs/COURRIELS_MICROSOFT.md) and redirects, Stripe Connect/webhook, DNS and terms.",
 );
 console.log(
   "REVIEW Verify browser desktop/mobile and complete a Stripe TEST purchase before enabling launch flags.",

@@ -2,6 +2,8 @@
 
 Les courriels de MarketPaperclip (confirmation d’inscription, mot de passe oublié, changement d’adresse, codes et avis de sécurité) partent de **info@mgminformatique.ca** par Microsoft Graph, avec la même méthode que ChantierConnect. Aucun mot de passe de boîte courriel ni SMTP n’est utilisé : l’authentification SMTP est désactivée dans le locataire MGM, et Microsoft retire l’authentification de base SMTP.
 
+**État au 3 novembre 2026 : actif.** Application Entra « MarketPaperclip Courriels » (`f208b79c-ac1e-43e5-94bc-cf00b71c1d09`, locataire `bde49dc5-c361-4828-82b8-f51d492bb9fc`), permission d’application `Mail.Send` accordée, secret client valide jusqu’au **3 novembre 2028** (relancer le script `--apply` avant cette date). Fonction `send-email` déployée, crochet Send Email activé dans Supabase Auth. Vérifié : courriel de test signé envoyé à info@mgminformatique.ca, puis vraie inscription sur https://marketpaperclip.netlify.app acceptée (HTTP 200) avec l’adresse de test `info+marketpaperclip-test@mgminformatique.ca` (compte non confirmé, supprimable).
+
 Sans ce branchement, le service de courriel par défaut de Supabase n’envoie qu’aux membres de l’organisation Supabase : toute autre inscription échoue (« Inscription impossible… »).
 
 ## Fonctionnement

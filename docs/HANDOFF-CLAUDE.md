@@ -36,12 +36,12 @@ Fait :
 Mise à jour du 3 novembre (matin), avec l’accord du propriétaire :
 - **Production publique** : protection d’équipe limitée aux déploiements hors production (`sso_login_context=non_production`). `*.netlify.app` répond avec `X-Robots-Tag: noindex`; seule l’origine `SITE_URL` est indexable.
 - **SEO déployé** (déploiement `6ae9d7a88f026e0314f1fda2`, commit `8354e6a`) : voir [SEO.md](SEO.md). Lighthouse en ligne : performance 94–96, SEO 100 sur l’origine canonique (mesuré localement), 66–69 sur netlify.app à cause du `noindex` voulu.
-- Les inscriptions publiques sont possibles mais les courriels de confirmation ne partent qu’aux membres de l’organisation Supabase tant que le SMTP n’est pas configuré.
+- Courriels Auth : envoyés par Microsoft 365 (info@mgminformatique.ca, Microsoft Graph) via le crochet Supabase Send Email et la fonction `send-email`, comme ChantierConnect — voir [COURRIELS_MICROSOFT.md](COURRIELS_MICROSOFT.md). Configuration Auth : uniquement `node scripts/supabase-config-push.mjs`. Les liens suivent l’origine de l’inscription (netlify.app fonctionne avant la bascule DNS).
 
 Reste à faire :
 - DNS GoDaddy : A `@` → `75.2.60.5`, CNAME `www` → `marketpaperclip.netlify.app` (API GoDaddy non connectée; le 3 novembre au matin, les serveurs GoDaddy renvoyaient encore le parking). Tant que le DNS n’est pas basculé, les liens des courriels Auth (Site URL) mènent à la page de parking GoDaddy.
 - Après le DNS : Search Console (TXT de vérification chez GoDaddy, sitemap), Bing Webmaster, `node scripts/indexnow.mjs`.
-- SMTP Supabase avant les inscriptions publiques; clés et webhook Stripe dans Netlify; accès public du site au lancement.
+- Clés et webhook Stripe dans Netlify; restreindre « MarketPaperclip Courriels » à la boîte info@ (RBAC Exchange pour les applications).
 - Branche `feature/marche-netlify` encore locale (non poussée sur GitHub).
 
 ## Accès disponibles sur le poste
