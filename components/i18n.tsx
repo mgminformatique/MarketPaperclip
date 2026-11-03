@@ -5,9 +5,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { staticPages } from "../lib/seo";
 import { Globe } from "lucide-react";
 import { translate } from "../lib/i18n/translate";
 import { localeCookie, type Locale } from "../lib/i18n/locale";
@@ -30,19 +32,20 @@ export function LocaleProvider({
     url.searchParams.set("lang", next);
     window.history.replaceState(window.history.state, "", url);
   }, []);
+  // The server renders each page's own title and description; they are left
+  // untouched on load. A language switch afterwards updates public pages from
+  // the same copy the server uses.
+  const rendered = useRef(initialLocale);
   useEffect(() => {
     document.documentElement.lang = locale;
-    document.title =
-      locale === "en"
-        ? "MarketPaperclip — The agent marketplace"
-        : "MarketPaperclip — Le marketplace des agents";
-    const description = document.querySelector('meta[name="description"]');
-    description?.setAttribute(
-      "content",
-      locale === "en"
-        ? "Discover, buy and sell AI agents and agent bundles. Built for developers, around Paperclip."
-        : "Découvrez, achetez et vendez des agents IA et des bundles. Pensé pour les développeurs, autour de Paperclip.",
-    );
+    if (locale === rendered.current) return;
+    rendered.current = locale;
+    const page = staticPages[window.location.pathname];
+    if (!page) return;
+    document.title = page[locale].title;
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", page[locale].description);
   }, [locale]);
   // Back/forward navigation can restore a URL with an explicit language.
   useEffect(() => {

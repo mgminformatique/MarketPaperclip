@@ -88,6 +88,14 @@ const worker = {
         `mp-language=${locale}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`,
       );
     }
+    // Only the canonical origin may be indexed; netlify.app and deploy previews
+    // serve the same pages and must not compete with it in search results.
+    let canonicalHost = "";
+    try {
+      canonicalHost = new URL(config.SITE_URL || "").host;
+    } catch {}
+    if (canonicalHost && requestUrl.host !== canonicalHost)
+      response.headers.set("X-Robots-Tag", "noindex, nofollow");
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     response.headers.set(

@@ -73,6 +73,7 @@ import {
 import {
   ActivityList,
   CreatorMarketStats,
+  HomeFaq,
   MarketPage,
   MarketPulse,
   PriceHistory,
@@ -84,6 +85,7 @@ import type {
   MarketEvent,
   ProductStats,
 } from "../lib/market/market";
+import type { InitialData } from "../lib/market/public-data";
 import {
   Studio,
   ProductEditor,
@@ -130,8 +132,11 @@ const categoryIcons = [
 ];
 export default function Marketplace({
   initialConfig,
+  initialData,
 }: {
   initialConfig: Configuration;
+  // Server-rendered content for the first page (search engines, previews).
+  initialData?: InitialData;
 }) {
   const { t, locale } = useI18n();
   const pathname = usePathname() || "/";
@@ -235,6 +240,7 @@ export default function Marketplace({
   };
   const signIn = () => setAuth("login");
   const catalog = ["/", "/agents", "/bundles", "/favorites"].includes(pathname);
+  const initial = initialData?.path === pathname ? initialData : undefined;
   const settings = useMemo(
     () => ({ prices: config.prices !== false }),
     [config.prices],
@@ -441,6 +447,7 @@ export default function Marketplace({
                 config={config}
                 favorites={favorites}
                 save={save}
+                initial={initial?.catalog ?? undefined}
               />
             ) : pathname.startsWith("/agents/") ? (
               <ProductDetail
@@ -451,6 +458,7 @@ export default function Marketplace({
                 favorites={favorites}
                 save={save}
                 notify={notify}
+                initial={initial?.product ?? undefined}
               />
             ) : pathname === "/market" ? (
               <MarketPage favorites={favorites} save={save} />
@@ -461,6 +469,7 @@ export default function Marketplace({
                 name={pathname.split("/")[2]}
                 favorites={favorites}
                 save={save}
+                initial={initial?.creator ?? undefined}
               />
             ) : pathname === "/studio" ? (
               <Studio
@@ -574,17 +583,19 @@ function Catalog({
   config,
   favorites,
   save,
+  initial,
 }: {
   path: string;
   config: Configuration;
   favorites: string[];
   save: (id: string) => void;
+  initial?: InitialData["catalog"];
 }) {
   const { t, locale } = useI18n();
   const searchParams = useSearchParams();
   const searchQuery = searchParams?.get("q") || "";
   const [products, setProducts] = useState<Product[]>(
-    config.demo ? demoProducts : [],
+    initial?.products ?? (config.demo ? demoProducts : []),
   );
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Tout");
@@ -593,7 +604,7 @@ function Catalog({
   const [engine, setEngine] = useState("all");
   const [filters, setFilters] = useState(false);
   const [page, setPage] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(initial?.total ?? 0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -1140,6 +1151,7 @@ function Catalog({
                 </p>
               </div>
             </section>
+            <HomeFaq />
           </>
         ),
       )}
@@ -1348,6 +1360,7 @@ function ProductDetail({
   favorites,
   save,
   notify,
+  initial,
 }: {
   slug: string;
   config: Configuration;
@@ -1356,12 +1369,17 @@ function ProductDetail({
   favorites: string[];
   save: (id: string) => void;
   notify: (s: string) => void;
+  initial?: InitialData["product"];
 }) {
   const { t, locale } = useI18n();
-  const [p, setP] = useState<Product | null>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [stats, setStats] = useState<ProductStats | null>(null);
-  const [activity, setActivity] = useState<MarketEvent[]>([]);
+  const [p, setP] = useState<Product | null>(initial?.product ?? null);
+  const [reviews, setReviews] = useState<any[]>(initial?.reviews ?? []);
+  const [stats, setStats] = useState<ProductStats | null>(
+    (initial?.stats as ProductStats | null) ?? null,
+  );
+  const [activity, setActivity] = useState<MarketEvent[]>(
+    (initial?.activity as MarketEvent[]) ?? [],
+  );
   const [tab, setTab] = useState("about");
   const [error, setError] = useState("");
   const [accepted, setAccepted] = useState(false);
@@ -1383,12 +1401,11 @@ function ProductDetail({
     [slug],
   );
   useEffect(() => {
-    setP(null);
+    // Keep server-rendered content on screen; a different product starts blank.
+    setP((current) => (current && current.slug === slug ? current : null));
     setError("");
     setTab("about");
     setAccepted(false);
-    setStats(null);
-    setActivity([]);
     load();
     if (
       new URLSearchParams(window.location.search).get("checkout") ===
@@ -1846,22 +1863,29 @@ function CreatorProfile({
   name,
   favorites,
   save,
+  initial,
 }: {
   name: string;
   favorites: string[];
   save: (id: string) => void;
+  initial?: InitialData["creator"];
 }) {
   const { t, locale } = useI18n();
-  const [data, setData] = useState<{
+  type CreatorView = {
     profile: any;
     products: Product[];
     demo?: boolean;
     stats?: CreatorStats | null;
     activity?: MarketEvent[];
-  } | null>(null);
+  };
+  const [data, setData] = useState<CreatorView | null>(
+    (initial as CreatorView | null) ?? null,
+  );
   const [error, setError] = useState("");
   useEffect(() => {
-    setData(null);
+    setData((current) =>
+      current && current.profile?.username === name ? current : null,
+    );
     setError("");
     api("creators/" + encodeURIComponent(name))
       .then(setData)

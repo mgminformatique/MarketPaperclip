@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "./navigation-link";
 import {
   Activity,
+  ChevronDown,
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
@@ -22,6 +23,7 @@ import {
   Users,
 } from "lucide-react";
 import { money, type Product } from "../lib/market/model";
+import { faq } from "../lib/faq";
 import {
   compactMoney,
   marketRanges,
@@ -169,7 +171,7 @@ export function ActivityList({
               {e.seller.username}
             </Link>
           )}
-          <time role="cell" dateTime={e.created_at} title={new Date(e.created_at).toLocaleString(locale === "en" ? "en-CA" : "fr-CA")}>
+          <time role="cell" suppressHydrationWarning dateTime={e.created_at} title={new Date(e.created_at).toLocaleString(locale === "en" ? "en-CA" : "fr-CA")}>
             {timeAgo(e.created_at, locale)}
           </time>
         </div>
@@ -820,5 +822,38 @@ export function MarketPage({
         </Link>
       </section>
     </>
+  );
+}
+
+// Home page questions; the same text is published as FAQPage structured data.
+export function HomeFaq() {
+  const { t, locale } = useI18n();
+  return (
+    <section className="mk-faq" aria-labelledby="mk-faq-title">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">{t("QUESTIONS FRÉQUENTES")}</span>
+          <h2 id="mk-faq-title">
+            {t("Tout savoir avant de commencer")}{" "}
+            <span className="title-dot">{t(".")}</span>
+          </h2>
+        </div>
+        <Link href="/docs" className="subtle-link">
+          {t("Le guide complet ")}
+          <ArrowRight size={15} />
+        </Link>
+      </div>
+      <div className="mk-faq-list">
+        {faq[locale].map((item, i) => (
+          <details key={item.q} className="mk-faq-item" open={i === 0}>
+            <summary>
+              <h3>{item.q}</h3>
+              <ChevronDown size={16} aria-hidden="true" />
+            </summary>
+            <p>{item.a}</p>
+          </details>
+        ))}
+      </div>
+    </section>
   );
 }

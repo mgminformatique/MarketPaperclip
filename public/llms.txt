@@ -1,0 +1,25 @@
+# MarketPaperclip
+
+> MarketPaperclip is an independent marketplace where developers buy and sell AI agents and agent bundles (coordinated teams of agents) for Claude, GPT, Gemini, Ollama and multi-model setups, built around the Paperclip agent environment. Creators set their own prices, buyers can make offers, payments go through Stripe Connect, and every purchase is a private, versioned package. The site is bilingual (French and English), operated from Québec, Canada, with prices in Canadian dollars.
+
+## Main pages
+
+- [Home](https://marketpaperclip.com/): featured AI agents and bundles, live market strip.
+- [Live market](https://marketpaperclip.com/market): sales volume, sales, floor and average price, trending agents, top creators and live activity.
+- [AI agents](https://marketpaperclip.com/agents): catalogue filtered by category (development, research and data, marketing, operations, design, customer support) and model.
+- [Agent bundles](https://marketpaperclip.com/bundles): teams of agents delivered as one package.
+- [Creators](https://marketpaperclip.com/creators): developers and studios publishing agents.
+- [Creator guide](https://marketpaperclip.com/docs): how to package, document, publish, price and sell an agent.
+- [Licenses](https://marketpaperclip.com/licenses): MIT, Apache-2.0, commercial individual and team licenses.
+
+## How it works
+
+- Buyers browse listings, buy at the listed price or make an offer (at least 20% of the asking price); an accepted offer can be paid within 72 hours. Downloads are private, time-limited links to the purchased version.
+- Sellers publish an agent or bundle with documentation, a ZIP or JSON package and their own price. Every listing is reviewed by a human moderator before it appears. Sellers can change a live price or pause a listing without a new review.
+- Public market data never identifies buyers. Statistics are aggregated from confirmed payments.
+
+## Optional
+
+- [Sitemap](https://marketpaperclip.com/sitemap.xml)
+- English versions of every page: append `?lang=en`.
+- Operated by [MGM Informatique](https://mgminformatique.ca).

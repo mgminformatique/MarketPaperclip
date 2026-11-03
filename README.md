@@ -39,7 +39,7 @@ Le projet Supabase désigné est `ltommtumsvvqxdknpkfd`. Le déploiement des six
 
 Lisez [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), puis [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md). Les scripts SQL à appliquer dans l’ordre sont dans `supabase/migrations/`.
 
-La mise en ligne Netlify + GoDaddy + Stripe est décrite pas à pas dans [docs/NETLIFY.md](docs/NETLIFY.md). Le domaine cible est **marketpaperclip.com**. L’instance de présentation hébergée est distincte de la configuration DNS finale. Les comptes, les paiements et le domaine ne sont pas réputés activés tant que les contrôles externes du guide n’ont pas été réalisés.
+La mise en ligne Netlify + GoDaddy + Stripe est décrite pas à pas dans [docs/NETLIFY.md](docs/NETLIFY.md). Le référencement (métadonnées, données structurées, sitemap, Search Console, IndexNow) est décrit dans [docs/SEO.md](docs/SEO.md). Le domaine cible est **marketpaperclip.com**. L’instance de présentation hébergée est distincte de la configuration DNS finale. Les comptes, les paiements et le domaine ne sont pas réputés activés tant que les contrôles externes du guide n’ont pas été réalisés.
 
 ## Architecture
 

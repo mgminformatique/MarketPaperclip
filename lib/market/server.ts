@@ -27,6 +27,9 @@ export type Config = {
   // Comma-separated extra HTTPS origins serving this same deployment, e.g.
   // https://www.marketpaperclip.com,https://*--marketpaperclip.netlify.app
   SITE_ALIASES?: string;
+  // Public ownership tokens for search consoles (rendered as meta tags).
+  GOOGLE_SITE_VERIFICATION?: string;
+  BING_SITE_VERIFICATION?: string;
 };
 const publishableKey = (c: Config) =>
   c.SUPABASE_PUBLISHABLE_KEY || c.SUPABASE_ANON_KEY;
