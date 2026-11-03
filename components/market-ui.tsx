@@ -15,7 +15,11 @@ import {
   X,
 } from "lucide-react";
 import { money, type Product } from "../lib/market/model";
-import { SHOW_PRODUCT_PRICES } from "../lib/market/presentation";
+// Price visibility comes from the server configuration (SHOW_PRICES).
+export const MarketSettings = React.createContext({ prices: true });
+export function usePricesVisible() {
+  return React.useContext(MarketSettings).prices;
+}
 export async function api<T = any>(
   path: string,
   body?: unknown,
@@ -114,6 +118,7 @@ export function ProductCard({
   onSave: (id: string) => void;
 }) {
   const { t, locale } = useI18n();
+  const showPrices = usePricesVisible();
   return (
     <article className="product-card">
       <div className="product-visual">
@@ -171,7 +176,7 @@ export function ProductCard({
           )}
         </div>
         <div className="card-bottom">
-          {SHOW_PRODUCT_PRICES && (
+          {showPrices && (
             <span
               className={
                 "price" + (p.price_cents === null ? " price-unset" : "")

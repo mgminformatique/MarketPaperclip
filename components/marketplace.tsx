@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "./navigation-link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  Activity,
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
@@ -19,6 +20,7 @@ import {
   CreditCard,
   Download,
   ExternalLink,
+  Gavel,
   FileCode2,
   FlaskConical,
   FolderOpen,
@@ -54,7 +56,6 @@ import {
   type Product,
 } from "../lib/market/model";
 import { demoProducts } from "../lib/market/demo";
-import { SHOW_PRODUCT_PRICES } from "../lib/market/presentation";
 import { favoriteIds, readFavorites } from "../lib/market/browser-state";
 import {
   api,
@@ -62,12 +63,27 @@ import {
   Brand,
   Empty,
   Loading,
+  MarketSettings,
   Modal,
   Notice,
   ProductArt,
   ProductCard,
   CopyButton,
 } from "./market-ui";
+import {
+  ActivityList,
+  CreatorMarketStats,
+  MarketPage,
+  MarketPulse,
+  PriceHistory,
+  ProductMarketStats,
+} from "./market-floor";
+import { MyOfferStatus, OfferModal, useMyOffer } from "./market-desk";
+import type {
+  CreatorStats,
+  MarketEvent,
+  ProductStats,
+} from "../lib/market/market";
 import {
   Studio,
   ProductEditor,
@@ -98,6 +114,10 @@ export type Configuration = {
   payments: boolean;
   demo: boolean;
   github: boolean;
+  // Free acquisitions are open (launch gate), independently of Stripe.
+  launched?: boolean;
+  // Older servers omit it: prices then stay visible by default.
+  prices?: boolean;
   feeBps: number | null;
 };
 const categoryIcons = [
@@ -189,7 +209,12 @@ export default function Marketplace({
   };
   const signIn = () => setAuth("login");
   const catalog = ["/", "/agents", "/bundles", "/favorites"].includes(pathname);
+  const settings = useMemo(
+    () => ({ prices: config.prices !== false }),
+    [config.prices],
+  );
   return (
+    <MarketSettings.Provider value={settings}>
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
         {t("Aller au contenu")}
@@ -224,6 +249,13 @@ export default function Marketplace({
             <Compass size={18} />
             {t(" Explorer ")}
             <span className="active-dot" />
+          </Link>
+          <Link
+            className={"nav-item " + (pathname === "/market" ? "active" : "")}
+            href="/market"
+          >
+            <Activity size={18} />
+            {t(" Le marché")} <span className="nav-tag">{t("LIVE")}</span>
           </Link>
           <Link
             className={"nav-item " + (pathname === "/agents" ? "active" : "")}
@@ -394,6 +426,8 @@ export default function Marketplace({
                 save={save}
                 notify={notify}
               />
+            ) : pathname === "/market" ? (
+              <MarketPage favorites={favorites} save={save} />
             ) : pathname === "/creators" ? (
               <Creators />
             ) : pathname.startsWith("/creators/") ? (
@@ -506,6 +540,7 @@ export default function Marketplace({
         ),
       )}
     </div>
+    </MarketSettings.Provider>
   );
 }
 function Catalog({
@@ -748,6 +783,7 @@ function Catalog({
           </div>
         ),
       )}
+      {t(home && !config.demo && <MarketPulse />)}
       {t(
         home && (
           <div className="ecosystem-bar">
@@ -881,7 +917,7 @@ function Catalog({
               >
                 <option value="featured">{t("À découvrir")}</option>
                 <option value="new">{t("Plus récents")}</option>
-                {SHOW_PRODUCT_PRICES && (
+                {config.prices !== false && (
                   <>
                     <option value="price-asc">{t("Prix croissant")}</option>
                     <option value="price-desc">{t("Prix décroissant")}</option>
@@ -1298,28 +1334,56 @@ function ProductDetail({
   const { t, locale } = useI18n();
   const [p, setP] = useState<Product | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [stats, setStats] = useState<ProductStats | null>(null);
+  const [activity, setActivity] = useState<MarketEvent[]>([]);
   const [tab, setTab] = useState("about");
   const [error, setError] = useState("");
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [offering, setOffering] = useState(false);
+  const showPrices = config.prices !== false;
+  const load = useCallback(
+    () =>
+      api("products/" + encodeURIComponent(slug))
+        .then((d) => {
+          setP(d.product);
+          setReviews(d.reviews);
+          setStats(d.stats || null);
+          setActivity(d.activity || []);
+        })
+        .catch((e) => setError(e.message)),
+    [slug],
+  );
   useEffect(() => {
     setP(null);
     setError("");
     setTab("about");
     setAccepted(false);
-    api("products/" + encodeURIComponent(slug))
-      .then((d) => {
-        setP(d.product);
-        setReviews(d.reviews);
-      })
-      .catch((e) => setError(e.message));
-  }, [slug]);
+    setStats(null);
+    setActivity([]);
+    load();
+    if (
+      new URLSearchParams(window.location.search).get("checkout") ===
+      "cancelled"
+    )
+      notify("Paiement annulé. Vous pouvez reprendre votre achat à tout moment.");
+  }, [slug, load, notify]);
+  const own = !!(p && session.user && p.seller_id === session.user.id);
+  const free = p?.price_cents === 0;
+  // Free agents open with the launch gate; paid ones need Stripe payments.
+  const open = !!p && !p.demo && (free ? !!config.launched : config.payments);
+  const offersOpen =
+    !!p && !p.demo && config.payments && !own && (p.price_cents ?? 0) > 0;
+  const { offer, reload: reloadOffer } = useMyOffer(
+    p && !p.demo ? p.id : null,
+    !!session.user && offersOpen,
+  );
   const buy = async () => {
     if (!session.user) {
       signIn();
       return;
     }
-    if (!SHOW_PRODUCT_PRICES || !p || p.price_cents === null) return;
+    if (!showPrices || !p || p.price_cents === null || !open || own) return;
     setBusy(true);
     try {
       const d = await api("checkout", {
@@ -1364,6 +1428,7 @@ function ProductDetail({
               [
                 ["about", "Vue d’ensemble"],
                 ["setup", "Installation"],
+                ...(p.demo ? [] : [["activity", "Activité"]]),
                 ["reviews", `Avis (${reviews.length})`],
               ].map(([id, label]) => (
                 <button
@@ -1416,6 +1481,24 @@ function ProductDetail({
                       "Les coûts des modèles et des services tiers sont distincts du prix du package. Vérifiez les permissions et les prérequis avant l’exécution.",
                     )}
                   </div>
+                </>
+              ) : tab === "activity" ? (
+                <>
+                  <h2>{t("L’historique du marché.")}</h2>
+                  <p className="muted mk-tab-lead">
+                    {t(
+                      "Mises en vente, changements de prix, offres et ventes. Les acheteurs restent anonymes.",
+                    )}
+                  </p>
+                  {showPrices && (
+                    <PriceHistory events={activity} price={p.price_cents} />
+                  )}
+                  <ActivityList
+                    events={activity}
+                    showProduct={false}
+                    showSeller={false}
+                    empty="Aucune activité publique pour ce produit."
+                  />
                 </>
               ) : tab === "setup" ? (
                 <>
@@ -1493,7 +1576,7 @@ function ProductDetail({
             </span>
             <ArrowUpRight size={18} />
           </Link>
-          {SHOW_PRODUCT_PRICES && (
+          {showPrices && (
             <div
               className={
                 "purchase-price" +
@@ -1516,12 +1599,13 @@ function ProductDetail({
               )}
             </div>
           )}
+          {!p.demo && <ProductMarketStats stats={stats} />}
           {t(
             p.demo ? (
               <Notice>
                 {t("Fiche de démonstration. Ce produit n’est pas en vente.")}
               </Notice>
-            ) : SHOW_PRODUCT_PRICES ? (
+            ) : showPrices && !own ? (
               <label className="checkbox-label">
                 <input
                   type="checkbox"
@@ -1539,26 +1623,46 @@ function ProductDetail({
           <button
             className="button primary full"
             disabled={
-              !SHOW_PRODUCT_PRICES ||
+              !showPrices ||
               p.demo ||
               p.price_cents === null ||
               busy ||
-              (!accepted && !!session.user) ||
-              (!config.payments && (p.price_cents ?? 0) > 0)
+              own ||
+              !open ||
+              (!accepted && !!session.user)
             }
             onClick={buy}
           >
             {t(
-              !SHOW_PRODUCT_PRICES || p.demo
-                ? "Disponible au lancement"
-                : busy
-                  ? "Préparation…"
-                  : p.price_cents
-                    ? "Obtenir cet agent"
-                    : "Ajouter à mes acquisitions",
+              own
+                ? "Votre création"
+                : !showPrices || p.demo || !open
+                  ? "Disponible au lancement"
+                  : busy
+                    ? "Préparation…"
+                    : p.price_cents
+                      ? "Obtenir cet agent"
+                      : "Ajouter à mes acquisitions",
             )}
             <ArrowUpRight size={18} />
           </button>
+          {offersOpen &&
+            (offer ? (
+              <MyOfferStatus
+                offer={offer}
+                licenseAccepted={accepted}
+                reload={reloadOffer}
+                notify={notify}
+              />
+            ) : (
+              <button
+                className="button secondary full mk-offer-button"
+                onClick={() => (session.user ? setOffering(true) : signIn())}
+              >
+                <Gavel size={16} />
+                {t("Faire une offre")}
+              </button>
+            ))}
           <button className="button secondary full" onClick={() => save(p.id)}>
             <Bookmark
               size={17}
@@ -1570,7 +1674,7 @@ function ProductDetail({
                 : "Garder pour plus tard",
             )}
           </button>
-          {SHOW_PRODUCT_PRICES && (
+          {showPrices && (
             <div className="purchase-note">
               <LockKeyhole size={13} />
               {t(" Accès privé après confirmation du paiement")}
@@ -1611,6 +1715,18 @@ function ProductDetail({
           </Link>
         </aside>
       </div>
+      {offering && (
+        <OfferModal
+          product={p}
+          notify={notify}
+          onClose={() => setOffering(false)}
+          onDone={() => {
+            setOffering(false);
+            reloadOffer();
+            load();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -1696,7 +1812,13 @@ function CreatorProfile({
   save: (id: string) => void;
 }) {
   const { t, locale } = useI18n();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<{
+    profile: any;
+    products: Product[];
+    demo?: boolean;
+    stats?: CreatorStats | null;
+    activity?: MarketEvent[];
+  } | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     setData(null);
@@ -1752,6 +1874,7 @@ function CreatorProfile({
           </div>
         ),
       )}
+      {!data.demo && <CreatorMarketStats stats={data.stats ?? null} />}
       <div className="section-heading">
         <h2>
           {t("Les créations du studio")}{" "}
@@ -1774,6 +1897,16 @@ function CreatorProfile({
           )),
         )}
       </div>
+      {!data.demo && (
+        <section className="panel mk-panel mk-profile-activity">
+          <div className="panel-title">
+            <h3>
+              <Activity size={15} /> {t("Activité du studio")}
+            </h3>
+          </div>
+          <ActivityList events={data.activity || []} showSeller={false} />
+        </section>
+      )}
     </>
   );
 }

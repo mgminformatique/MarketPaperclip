@@ -6,6 +6,7 @@ import { translate } from "../lib/i18n/translate";
 import "@fontsource-variable/manrope";
 import "@fontsource-variable/dm-sans";
 import "./globals.css";
+import "./market.css";
 async function currentLocale(): Promise<Locale> {
   return (await headers()).get("x-market-language") === "en" ? "en" : "fr";
 }

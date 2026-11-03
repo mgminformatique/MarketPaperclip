@@ -44,9 +44,22 @@ import {
   priceInCents,
   type Product,
 } from "../lib/market/model";
-import { api, Avatar, Empty, Loading, Modal, Notice } from "./market-ui";
+import {
+  api,
+  Avatar,
+  Empty,
+  Loading,
+  Modal,
+  Notice,
+  usePricesVisible,
+} from "./market-ui";
 import type { Configuration, Session } from "./marketplace";
-import { SHOW_PRODUCT_PRICES } from "../lib/market/presentation";
+import {
+  ListingsDesk,
+  MyOffers,
+  OffersDesk,
+  uploadPackage,
+} from "./market-desk";
 type Props = {
   session: Session;
   signIn: () => void;
@@ -101,10 +114,23 @@ export function Studio({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("products");
+  const [pendingOffers, setPendingOffers] = useState(0);
   const load = () =>
     api("studio?page=" + page + "&salesPage=" + salesPage)
       .then(setData)
       .catch((e) => setError(e.message));
+  useEffect(() => {
+    if (!session.user) return;
+    api("offers?role=seller")
+      .then((d) =>
+        setPendingOffers(
+          (d.offers as { status: string }[]).filter(
+            (o) => o.status === "pending",
+          ).length,
+        ),
+      )
+      .catch(() => {});
+  }, [session.user?.id]);
   useEffect(() => {
     if (session.user) {
       setLoading(true);
@@ -232,6 +258,13 @@ export function Studio({
               >
                 {t("Transactions")}
               </button>
+              <button
+                className={tab === "offers" ? "selected" : ""}
+                onClick={() => setTab("offers")}
+              >
+                {t("Offres ")}
+                {pendingOffers > 0 && <span>{pendingOffers}</span>}
+              </button>
             </div>
             {t(
               session.profile && (
@@ -248,6 +281,14 @@ export function Studio({
           {t(
             loading ? (
               <Loading />
+            ) : tab === "offers" ? (
+              session.user ? (
+                <OffersDesk notify={notify} onCount={setPendingOffers} />
+              ) : (
+                <Empty icon={Users} title={t("Vos offres, au même endroit.")}>
+                  {t("Connectez-vous pour répondre aux offres des acheteurs.")}
+                </Empty>
+              )
             ) : tab === "products" ? (
               data.products.length ? (
                 <div className="data-table">
@@ -357,9 +398,10 @@ export function Studio({
             ),
           )}
           {t(
-            (tab === "products"
-              ? data.stats.total_products
-              : data.stats.orders_count) > 12 && (
+            tab !== "offers" &&
+              (tab === "products"
+                ? data.stats.total_products
+                : data.stats.orders_count) > 12 && (
               <div className="pagination">
                 <button
                   className="button secondary small"
@@ -477,6 +519,9 @@ export function Studio({
           </section>
         </aside>
       </div>
+      {session.user && (
+        <ListingsDesk products={data.products} notify={notify} reload={load} />
+      )}
       <section className="studio-tip">
         <BookOpen size={23} />
         <div>
@@ -550,6 +595,7 @@ export function ProductEditor({
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
+  const showPrices = usePricesVisible();
   const [form, setForm] = useState(() => ({
     ...emptyProduct,
     requirements: t(emptyProduct.requirements),
@@ -671,9 +717,7 @@ export function ProductEditor({
         setCoverFile(null);
       }
       if (file) {
-        const fd = new FormData();
-        fd.append("file", file);
-        await api("products/" + pid + "/file", fd);
+        await uploadPackage(pid, file);
         setExistingFile(file.name);
         setFile(null);
       }
@@ -1198,7 +1242,7 @@ export function ProductEditor({
                     .map((x) => <span key={x}>{x}</span>),
                 )}
               </div>
-              {SHOW_PRODUCT_PRICES && (
+              {showPrices && (
                 <strong>
                   {cents === null ? (
                     t("Votre prix")
@@ -1343,6 +1387,7 @@ export function Library({ session, signIn, notify }: Props) {
         ) : (
           <>
             {t(error && <Notice error>{t(error)}</Notice>)}
+            <MyOffers notify={notify} />
             {t(
               orders.some((o) => o.status === "pending") && (
                 <Notice>

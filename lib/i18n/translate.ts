@@ -38,6 +38,7 @@ const patterns: [RegExp, (...parts: string[]) => string][] = [
   [/^Illustration 3D de (.+)$/, (title) => `3D illustration of ${title}`],
   [/^Votre expérience avec (.+)$/, (title) => `Your experience with ${title}`],
   [/^Commission de (.+) %$/, (rate) => `${rate}% platform fee`],
+  [/^Bienvenue, (.+)\.$/, (name) => `Welcome, ${name}.`],
 ];
 export function translate<T>(value: T, locale: Locale): T {
   if (locale !== "en" || typeof value !== "string") return value;
