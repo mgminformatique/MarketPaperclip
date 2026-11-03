@@ -3,8 +3,17 @@ project_id = "marketpaperclip"
 
 # Production Auth settings. Preview, then apply (only declared properties change;
 # SMTP, providers and other settings stay as configured in the Dashboard):
-#   supabase config diff --project-ref ltommtumsvvqxdknpkfd
-#   supabase config push --project-ref ltommtumsvvqxdknpkfd
+#   node scripts/supabase-config-push.mjs --diff
+#   node scripts/supabase-config-push.mjs
+# Never run "supabase config push" directly: it would push the Send Email hook
+# without its signing secret (kept in .sites-runtime/send-email-hook.private.env)
+# and every authentication email would fail. See docs/COURRIELS_MICROSOFT.md.
+
+# Supabase Auth Send Email hook (signed by Auth, not by a user JWT).
+[functions.send-email]
+verify_jwt = false
+entrypoint = "./functions/send-email/index.ts"
+
 [auth]
 site_url = "https://marketpaperclip.com"
 # The Site URL host is always allowed; these cover the other origins of the
@@ -33,3 +42,11 @@ content_path = "./supabase/templates/confirmation.html"
 [auth.email.template.recovery]
 subject = "MarketPaperclip — Nouveau mot de passe / Reset password"
 content_path = "./supabase/templates/recovery.html"
+
+# Authentication emails leave from info@mgminformatique.ca through Microsoft 365
+# (function send-email, Entra application "MarketPaperclip Courriels"). The
+# templates above stay as the fallback if the hook is ever disabled.
+[auth.hook.send_email]
+enabled = true
+uri = "https://ltommtumsvvqxdknpkfd.supabase.co/functions/v1/send-email"
+secrets = "env(SEND_EMAIL_HOOK_SECRET)"

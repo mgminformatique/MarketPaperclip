@@ -29,13 +29,13 @@ supabase db push --linked --project-ref ltommtumsvvqxdknpkfd
 ### 2. Authentification
 
 ```sh
-supabase config diff --project-ref ltommtumsvvqxdknpkfd   # lecture seule
-supabase config push --project-ref ltommtumsvvqxdknpkfd
+node scripts/supabase-config-push.mjs --diff   # lecture seule
+node scripts/supabase-config-push.mjs
 ```
 
-Applique uniquement ce que déclare `supabase/config.toml` : Site URL `https://marketpaperclip.com`, redirections (www, netlify.app, aperçus), modèles de courriels FR/EN, mot de passe 12 caractères minimum (la production était à 6).
+Applique uniquement ce que déclare `supabase/config.toml` : Site URL `https://marketpaperclip.com`, redirections (www, netlify.app, aperçus), modèles de courriels FR/EN, mot de passe 12 caractères minimum (la production était à 6), crochet d’envoi des courriels. Ne jamais lancer `supabase config push` directement : il pousserait le crochet sans son secret de signature.
 
-**SMTP obligatoire avant d'ouvrir les inscriptions au public** : le service de courriel par défaut de Supabase n'envoie qu'aux membres de l'organisation Supabase. Configurer un SMTP (Resend, Postmark, Microsoft 365…) dans *Authentication → Emails → SMTP Settings*, avec un expéditeur du domaine `marketpaperclip.com` (SPF/DKIM chez GoDaddy).
+**Courriels d’authentification** : le service de courriel par défaut de Supabase n’envoie qu’aux membres de l’organisation Supabase. Les courriels partent par Microsoft 365 (info@mgminformatique.ca, Microsoft Graph, crochet Supabase *Send Email*), comme pour ChantierConnect : voir [COURRIELS_MICROSOFT.md](COURRIELS_MICROSOFT.md).
 
 ### 3. Site Netlify
 

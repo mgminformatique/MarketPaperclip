@@ -30,6 +30,18 @@ const publicFields =
   "id,seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,currency,license,tags,requirements,setup,agent_count,status,created_at,listed_at,cover_url,profiles!products_seller_id_fkey(display_name,username,bio)";
 const orderFields =
   "id,product_id,product_title,product_version,license,amount_cents,total_cents,tax_cents,fee_cents,currency,status,created_at,paid_at,offer_id";
+// Links sent by the Send Email hook (supabase/functions/send-email) and the
+// Supabase templates verify a token hash of one of these types.
+const OTP_TYPES = [
+  "signup",
+  "recovery",
+  "email",
+  "email_change",
+  "magiclink",
+  "invite",
+] as const;
+const isOtpType = (value: string | null): value is (typeof OTP_TYPES)[number] =>
+  (OTP_TYPES as readonly string[]).includes(value || "");
 const credentials = z.object({
   email: z.string().email().max(254),
   password: z.string().min(12).max(128),
@@ -442,10 +454,10 @@ export async function marketApi(req: Request, c: Config) {
         const type = url.searchParams.get("type");
         if (code)
           ({ error } = await ctx.client!.auth.exchangeCodeForSession(code));
-        else if (token && ["signup", "recovery", "email"].includes(type || ""))
+        else if (token && isOtpType(type))
           ({ error } = await ctx.client!.auth.verifyOtp({
             token_hash: token,
-            type: type as "signup" | "recovery" | "email",
+            type,
           }));
         else return ctx.redirect("/?auth=invalid");
         if (error) return ctx.redirect("/?auth=invalid");
