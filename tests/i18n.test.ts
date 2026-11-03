@@ -37,6 +37,7 @@ test("localized links preserve searches and anchors without changing external de
 test("messages translate in both languages with whitespace and interpolated product names preserved", () => {
   assert.equal(translate("Connexion", "en"), "Sign in");
   assert.equal(translate("Connexion", "fr"), "Connexion");
+  assert.equal(translate("Continuer avec Google", "en"), "Continue with Google");
   assert.equal(translate(" Créer mon compte ", "en"), " Create my account ");
   assert.equal(
     translate("Ajouter aux favoris : My custom agent", "en"),

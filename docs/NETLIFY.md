@@ -89,6 +89,7 @@ Netlify émet ensuite le certificat Let's Encrypt (quelques minutes après la pr
 | `SITE_URL` | `https://marketpaperclip.com` |
 | `SITE_ALIASES` | `https://www.marketpaperclip.com,https://marketpaperclip.netlify.app,https://*--marketpaperclip.netlify.app` |
 | `MARKET_ADMIN_EMAILS` | courriel(s) des modérateurs |
+| `GOOGLE_AUTH_ENABLED` | `true` seulement après configuration du client Google dans Supabase; voir [GOOGLE-AUTH.md](GOOGLE-AUTH.md) |
 | `SHOW_PRICES` | `true` (ou `false` pour masquer les prix) |
 | `LAUNCH_READY` | `true` ouvre les acquisitions gratuites (et payantes avec Stripe) |
 | `PAYMENTS_ENABLED`, `STRIPE_*`, `PLATFORM_FEE_BPS` | paiements, voir étape 5 |
