@@ -5,11 +5,14 @@
 | Élément | Mise en œuvre |
 | --- | --- |
 | Titres et descriptions | Propres à chaque page publique, en français et en anglais (`lib/seo.ts`). Fiches : nom, type, modèle; profils : nom et bio. |
-| URL canonique + hreflang | Origine `SITE_URL` (`https://marketpaperclip.com`); français sans paramètre, anglais `?lang=en`; `x-default` = français. |
+| URL canonique + hreflang | Origine `SITE_URL` (`https://marketpaperclip.com`); français sans paramètre, anglais `?lang=en`. hreflang `fr` et `en` (codes de langue seuls : un anglophone de n'importe quel pays reçoit la page anglaise), `x-default` = français. Les liens internes des pages françaises pointent vers l'URL canonique, sans `?lang=fr` (`crawlableHref`, `lib/i18n/locale.ts`) ; la navigation dans l'application garde le paramètre explicite. |
 | Rendu serveur | Catalogue, fiches produit et profils créateurs présents dans le HTML initial (`lib/market/public-data.ts`), plus d'état « chargement » pour les robots. |
 | Métadonnées dans `<head>` | Pour tous les agents (`htmlLimitedBots: /.*/` dans `next.config.ts`) : Googlebot, Bingbot, GPTBot, ClaudeBot, réseaux sociaux. |
-| Données structurées | Accueil : `Organization`, `WebSite` (recherche), `FAQPage`, `ItemList`. Fiches : `SoftwareApplication` (offre en CAD, note agrégée d'avis réels) + `BreadcrumbList`. Profils : `ProfilePage` + `BreadcrumbList`. Échappement sûr du contenu des vendeurs. |
-| Robots | `/robots.txt` : tout public autorisé (moteurs et IA), `/api/` et espaces connectés exclus; `noindex` sur les espaces connectés, pages introuvables et fiches de démonstration; `X-Robots-Tag: noindex` sur toute origine non canonique (`*.netlify.app`, aperçus). |
+| Données structurées | Accueil : `Organization`, `WebSite` (recherche), `FAQPage`, `ItemList`. Fiches : `SoftwareApplication` + `Product` (offre en CAD : extraits « produit » avec prix dès la publication, sans attendre d'avis ; note agrégée d'avis réels ; seuls les avis dont l'auteur a un nom public sont listés) + `BreadcrumbList`. Profils : `ProfilePage` + `BreadcrumbList`. Échappement sûr du contenu des vendeurs. |
+| Robots | `/robots.txt` : tout autorisé (moteurs et IA) sauf `/api/`. Les espaces connectés ne sont plus bloqués pour que les robots lisent leur `noindex, nofollow` (une page bloquée peut apparaître « indexée malgré le blocage »). `noindex` aussi sur les fiches de démonstration; `X-Robots-Tag: noindex` sur toute origine non canonique (`*.netlify.app`, aperçus). |
+| Pages introuvables | Vrai code **404** (`app/not-found.tsx`, même cadre et message « Page introuvable ») pour une adresse inconnue, une fiche ou un créateur inexistant ou retiré. Uniquement quand l'API répond 404 : une panne de la base ne transforme jamais une vraie fiche en 404. |
+| Documentation | Les cinq onglets de `/docs` sont dans le HTML (onglet choisi affiché, les autres `hidden`). |
+| Performance | Image d'accueil (élément LCP) en 480/768/1024/1536 px avec `srcset`/`sizes` ; zod sans compilation `eval` (`z.config({ jitless: true })`), donc plus de violation CSP signalée sur chaque page. |
 | Sitemap | `/sitemap.xml` dynamique : pages publiques, annonces publiées (avec image de couverture) et créateurs, en FR et EN avec alternatives et `lastmod`. |
 | Partage | Images OpenGraph/Twitter 1200×630 FR/EN (`public/og/`), couverture du produit sur les fiches. |
 | Identité | Icônes PNG 192/512, `apple-touch-icon`, manifeste web, `theme-color`. |
@@ -17,6 +20,8 @@
 | Découverte rapide | Clé IndexNow (`public/<clé>.txt`) et `scripts/indexnow.mjs`. |
 
 Lighthouse (local, 3 novembre 2026) : **SEO 100/100** sur l'accueil, une fiche, un profil et le marché en anglais. Tests : `tests/seo.test.ts`.
+
+Audit de la production (3 novembre 2026, soir, Lighthouse 12.8) : SEO 100 sur toutes les pages, performance 93–98 sur mobile et 100 sur ordinateur, accessibilité 86–93, bonnes pratiques 93–96. Corrigé ensuite : pages introuvables en 200 (« soft 404 »), hreflang `fr-CA`/`en-CA`, liens internes en `?lang=fr`, espaces connectés bloqués dans robots.txt, onglets de `/docs` absents du HTML, balisage des fiches inéligible sans avis, violation CSP de zod, image d'accueil trop lourde sur mobile, titre de `/support` trop court, `/licenses` sans lien. Restent, à décider : mise en cache CDN des pages publiques anonymes (TTFB à chaud ~0,4 s, ~2 s à froid), découpage du JavaScript par route, contraste et taille de certains petits textes (choix de design).
 
 ## Rendre le site trouvable — dans cet ordre
 

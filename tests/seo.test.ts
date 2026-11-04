@@ -13,7 +13,8 @@ import {
   seoRoute,
   staticPages,
 } from "../lib/seo";
-import { catalogQuery } from "../lib/market/public-data";
+import { catalogQuery, initialData } from "../lib/market/public-data";
+import { demoProducts } from "../lib/market/demo";
 import type { Product } from "../lib/market/model";
 
 const origin = "https://marketpaperclip.com";
@@ -97,12 +98,14 @@ test("Product structured data: offer in CAD, rating from real reviews, price hid
     { rating: 9 },
   ];
   const ld = productLd(origin, "fr", { product, reviews }, true) as Record<string, any>;
-  assert.equal(ld["@type"], "SoftwareApplication");
+  assert.deepEqual(ld["@type"], ["SoftwareApplication", "Product"]);
   assert.equal(ld.offers.price, "45.00");
   assert.equal(ld.offers.priceCurrency, "CAD");
   assert.equal(ld.aggregateRating.ratingValue, "4.5");
   assert.equal(ld.aggregateRating.reviewCount, 2);
-  assert.equal(ld.review[1].author.name, "Acheteur confirmé");
+  // Only reviews with a real author name are listed (Google requirement).
+  assert.equal(ld.review.length, 1);
+  assert.equal(ld.review[0].author.name, "Julie");
   assert.equal(ld.author.url, origin + "/creators/atelier-nova");
   const hidden = productLd(origin, "fr", { product, reviews: [] }, false) as Record<string, any>;
   assert.equal(hidden.offers, undefined);
@@ -145,4 +148,17 @@ test("FAQ structured data mirrors the visible questions in both languages", asyn
     });
   }
   assert.equal(faq.fr.length, faq.en.length);
+});
+
+test("Unknown pages, listings and creators answer a real 404; existing ones do not", async () => {
+  // No database configured here: the API serves the demonstration listings.
+  const demo = demoProducts[0];
+  assert.equal((await initialData("/page-qui-n-existe-pas")).missing, true);
+  assert.equal((await initialData("/agents/does-not-exist")).missing, true);
+  assert.equal((await initialData("/agents/UPPER")).missing, true);
+  assert.equal((await initialData("/creators/personne-inconnue")).missing, true);
+  assert.equal((await initialData("/agents/" + demo.slug)).missing, false);
+  assert.equal((await initialData("/creators/" + demo.profiles!.username)).missing, false);
+  for (const path of ["/", "/agents", "/market", "/studio/new", "/library", "/terms"])
+    assert.ok(!(await initialData(path)).missing, path);
 });

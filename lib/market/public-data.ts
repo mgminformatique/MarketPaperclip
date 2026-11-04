@@ -9,16 +9,21 @@ import { seoRoute } from "../seo";
 
 const internal = "https://marketpaperclip.internal/api/";
 
+// The status lets a page answer a real 404 only when the API itself says the
+// listing or creator does not exist, never because of an outage (0 or 5xx).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- API JSON
-export const publicGet = cache(async (path: string): Promise<any> => {
+export const publicFetch = cache(async (path: string): Promise<{ status: number; data: any }> => {
   try {
     const response = await marketApi(new Request(internal + path), marketEnv());
-    return response.ok ? await response.json() : null;
+    return { status: response.status, data: response.ok ? await response.json() : null };
   } catch {
     // Rendering must never fail because enrichment data is unavailable.
-    return null;
+    return { status: 0, data: null };
   }
 });
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- API JSON
+export const publicGet = cache(async (path: string): Promise<any> => (await publicFetch(path)).data);
 
 // The catalogue query the client issues first for each catalogue route, so the
 // server-rendered grid and the client's first fetch agree.
@@ -53,15 +58,23 @@ export type InitialData = {
     demo?: boolean;
   } | null;
   catalog?: { products: Product[]; total: number; demo?: boolean } | null;
+  // Unknown page, or a listing/creator the public API answers 404 for: the
+  // page responds with HTTP 404 (see app/not-found.tsx).
+  missing?: boolean;
 };
 
 export async function initialData(pathname: string): Promise<InitialData> {
   const route = seoRoute(pathname);
   const path = route.path;
-  if (route.kind === "product")
-    return { path, product: await publicGet("products/" + encodeURIComponent(route.slug)) };
-  if (route.kind === "creator")
-    return { path, creator: await publicGet("creators/" + encodeURIComponent(route.username)) };
+  if (route.kind === "missing") return { path, missing: true };
+  if (route.kind === "product") {
+    const r = await publicFetch("products/" + encodeURIComponent(route.slug));
+    return { path, product: r.data, missing: r.status === 404 };
+  }
+  if (route.kind === "creator") {
+    const r = await publicFetch("creators/" + encodeURIComponent(route.username));
+    return { path, creator: r.data, missing: r.status === 404 };
+  }
   if (["/", "/agents", "/bundles"].includes(path))
     return { path, catalog: await publicGet("catalog?" + catalogQuery(path)) };
   return { path };

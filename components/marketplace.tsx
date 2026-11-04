@@ -560,6 +560,7 @@ export default function Marketplace({
           <div>
             <Link href="/terms">{t("Conditions")}</Link>
             <Link href="/privacy">{t("Confidentialité")}</Link>
+            <Link href="/licenses">{t("Licences")}</Link>
             <Link href="/support">{t("Assistance")}</Link>
             <span>{t("FR / CAD")}</span>
           </div>
@@ -779,6 +780,13 @@ function Catalog({
             <div className="hero-art">
               <img
                 src="/art/hero.webp"
+                // Smaller files for phones and tablets (the LCP image). Sizes
+                // follow the rendered width, or height × 1.5 where the image
+                // covers a taller box (600–1240 px screens).
+                srcSet="/art/hero-480.webp 480w, /art/hero-768.webp 768w, /art/hero-1024.webp 1024w, /art/hero.webp 1536w"
+                sizes="(max-width: 480px) 92vw, (max-width: 1240px) 710px, 52vw"
+                width={1536}
+                height={1024}
                 alt={t(
                   "Trombone vert métallique au-dessus d’un réseau de modules d’agents",
                 )}

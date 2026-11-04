@@ -25,7 +25,7 @@ export const staticPages: Record<string, StaticPage> = {
     fr: {
       title: "MarketPaperclip — Marketplace d’agents IA pour développeurs",
       description:
-        "Achetez et vendez des agents IA et des bundles d’agents prêts à l’emploi pour Claude, GPT, Gemini et Ollama. Le marketplace des développeurs, autour de Paperclip.",
+        "Achetez et vendez des agents IA et des bundles d’agents prêts à l’emploi pour Claude, GPT, Gemini et Ollama : le marketplace des développeurs Paperclip.",
     },
     en: {
       title: "MarketPaperclip — The AI agent marketplace for developers",
@@ -49,7 +49,7 @@ export const staticPages: Record<string, StaticPage> = {
     fr: {
       title: "Agents IA à acheter — Catalogue | MarketPaperclip",
       description:
-        "Des agents IA pour le développement, la recherche, le marketing, les opérations, le design et le support client. Filtrez par modèle : Claude, GPT, Gemini, Ollama.",
+        "Agents IA pour le développement, la recherche, le marketing, les opérations, le design et le support client. Filtrez par modèle : Claude, GPT, Gemini, Ollama.",
     },
     en: {
       title: "AI agents for sale — Catalogue | MarketPaperclip",
@@ -131,12 +131,12 @@ export const staticPages: Record<string, StaticPage> = {
   },
   "/support": {
     fr: {
-      title: "Assistance | MarketPaperclip",
+      title: "Assistance et aide aux acheteurs | MarketPaperclip",
       description:
         "Une question sur un achat, un téléchargement ou une publication ? Contactez l’assistance de MarketPaperclip.",
     },
     en: {
-      title: "Support | MarketPaperclip",
+      title: "Support for buyers and creators | MarketPaperclip",
       description:
         "A question about a purchase, a download or a listing? Contact MarketPaperclip support.",
     },
@@ -169,10 +169,12 @@ export function localizedUrl(origin: string, path: string, locale: Locale) {
   return origin + path + (locale === "en" ? "?lang=en" : "");
 }
 
+// Language-only codes: an English speaker anywhere (not only in Canada) is
+// sent to the English page; other languages fall back to x-default.
 export function languageAlternates(origin: string, path: string) {
   return {
-    "fr-CA": localizedUrl(origin, path, "fr"),
-    "en-CA": localizedUrl(origin, path, "en"),
+    fr: localizedUrl(origin, path, "fr"),
+    en: localizedUrl(origin, path, "en"),
     "x-default": localizedUrl(origin, path, "fr"),
   };
 }
@@ -371,9 +373,11 @@ export function productLd(
   const reviews = ((data.reviews || []) as Review[]).filter(
     (r) => Number.isInteger(r?.rating) && r.rating >= 1 && r.rating <= 5,
   );
+  // Also a Product: with its Offer it qualifies for product snippets (price)
+  // before it has any review, which SoftwareApplication alone does not.
   const ld: JsonLd = {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
+    "@type": ["SoftwareApplication", "Product"],
     "@id": url + "#software",
     name: p.title,
     description: clip(`${p.tagline} ${p.description}`, 500),
@@ -411,13 +415,17 @@ export function productLd(
       bestRating: 5,
       worstRating: 1,
     };
-    ld.review = reviews.slice(0, 5).map((r) => ({
-      "@type": "Review",
-      reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 },
-      author: { "@type": "Person", name: r.profiles?.display_name || (locale === "en" ? "Verified buyer" : "Acheteur confirmé") },
-      reviewBody: r.body ? clip(r.body, 400) : undefined,
-      datePublished: r.created_at?.slice(0, 10),
-    }));
+    // Google requires a real author name: reviews without a public profile
+    // count in the rating but are not listed.
+    const named = reviews.filter((r) => text(r.profiles?.display_name));
+    if (named.length)
+      ld.review = named.slice(0, 5).map((r) => ({
+        "@type": "Review",
+        reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+        author: { "@type": "Person", name: text(r.profiles?.display_name) },
+        reviewBody: r.body ? clip(r.body, 400) : undefined,
+        datePublished: r.created_at?.slice(0, 10),
+      }));
   }
   return ld;
 }

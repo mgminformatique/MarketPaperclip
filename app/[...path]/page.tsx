@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import Marketplace from "../../components/marketplace";
 import { publicConfig } from "../../lib/market/config";
 import { marketEnv } from "../../lib/market/runtime";
@@ -14,6 +15,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 export default async function Page({ params }: Props) {
   const data = await initialData(await pathOf(params));
+  // Real 404 status (not a "soft 404") for unknown pages, listings and
+  // creators; the not-found view keeps the marketplace frame.
+  if (data.missing) notFound();
   return (
     <>
       <StructuredData data={data} />

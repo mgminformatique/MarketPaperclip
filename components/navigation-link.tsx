@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { ComponentPropsWithoutRef } from "react";
 import { useI18n } from "./i18n";
-import { localizedHref } from "../lib/i18n/locale";
+import { crawlableHref, localizedHref } from "../lib/i18n/locale";
 
 type Props = Omit<ComponentPropsWithoutRef<"a">, "href"> & { href: string };
 
@@ -17,7 +17,7 @@ export default function NavigationLink({ href, onClick, ...props }: Props) {
   return (
     <a
       {...props}
-      href={targetHref}
+      href={crawlableHref(href, locale)}
       onClick={(event) => {
         onClick?.(event);
         if (

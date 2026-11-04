@@ -1426,3 +1426,9 @@
     bottom: 10px;
   }
 }
+
+/* Docs: every tab is rendered (hidden when not selected); the panel wrapper
+   keeps the spacing buttons had as direct children of .prose. */
+.prose > .mk-docs-panel > .button {
+  margin-top: 25px;
+}

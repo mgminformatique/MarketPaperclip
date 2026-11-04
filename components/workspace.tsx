@@ -613,6 +613,8 @@ export function ProductEditor({
   const [price, setPrice] = useState("");
   const [priceEdited, setPriceEdited] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // The moderator's note when a submission was sent back for changes.
+  const [note, setNote] = useState("");
   const set = (key: string, v: any) => {
     setForm((f) => ({ ...f, [key]: v }));
     setDirty(true);
@@ -658,6 +660,7 @@ export function ProductEditor({
           ? p.product_files[0]
           : p.product_files;
         setExistingFile(f?.original_name || "");
+        setNote(p.status === "rejected" ? p.moderation_note || "" : "");
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -795,6 +798,12 @@ export function ProductEditor({
         )}
       </div>
       {t(error && <Notice error>{t(error)}</Notice>)}
+      {note && (
+        <Notice error>
+          {t("Correction demandée par la modération : ")}
+          {note}
+        </Notice>
+      )}
       <div className="editor-layout">
         <section className="panel editor-form">
           <form

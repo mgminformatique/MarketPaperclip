@@ -24,6 +24,17 @@ Environnement : build de production Netlify (`netlify serve`) branché sur une p
 
 Courriels réels (3 novembre 2026) : envoi par Microsoft 365 via le crochet Send Email; courriel de test signé et inscription réelle sur netlify.app acceptés. Restent à vérifier sur les services réels : réception dans des boîtes externes (Gmail, Outlook.com), achat Stripe en mode TEST de bout en bout, DNS/TLS de marketpaperclip.com, comportement du CDN Netlify en production.
 
+## Recette du 3 novembre 2026 (soir), avant le lancement
+
+Recette complète sur une **pile Supabase locale** (Postgres 17.11, Auth, REST, Storage, Mailpit) avec le build de production de `feature/profils` (4b1ec9d), Chromium réel en FR/EN, 1440 px et 390 px, Stripe simulé au niveau HTTP (onboarding Connect, Checkout, remboursements, webhooks signés). **150 vérifications sur 154** réussies, aucune erreur console :
+visiteur (11 pages), comptes (24 : inscriptions avec courriel, mot de passe erroné, réinitialisation, lien réutilisé refusé, bouton Google jusqu'à Supabase avec PKCE), profil (10), studio (9 : refus des fichiers trop gros, HTML, JSON invalide, faux ZIP), modération (21/22), acheteur (35 : acquisition gratuite, téléchargement identique, avis, offres refusée/acceptée, paiement d'une offre et d'un achat avec commission et destination correctes, webhook falsifié refusé, rejeu sans effet, remboursement avec transfert inversé), marché (11/12), sécurité (17), mobile et anglais (4), paiements fermés (10).
+
+Les 4 échecs venaient de deux défauts, corrigés le soir même : pages, fiches et créateurs inexistants répondaient 200 au lieu de 404, et la note du modérateur (« À corriger ») n'était pas affichée au vendeur. Corrigé aussi : `GET /api/creators/:nom/posts` sans curseur.
+
+Vérification des corrections sur le build local (81 vérifications, toutes réussies) : vrais 404 avec cadre et `noindex`, hreflang `fr`/`en`, liens français canoniques, `robots.txt`, onglets de `/docs` dans le HTML, conditions et confidentialité de lancement en FR et EN, lien Licences, image d'accueil responsive, aucune violation CSP ni erreur console, langue conservée à la navigation, aucun défilement horizontal à 390 px. Tests : 101 (`npm test`).
+
+Non couvert localement : Stripe réel (pages hébergées, 3DS, taxes, litiges), connexion Google au-delà de la redirection, livraison des courriels par Microsoft 365, CDN de production.
+
 ## Recette à exécuter sur les services configurés
 
 ### Comptes

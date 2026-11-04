@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requestLocale, localizedHref } from "../lib/i18n/locale";
+import { requestLocale, localizedHref, crawlableHref } from "../lib/i18n/locale";
 import { translate } from "../lib/i18n/translate";
 import { money, productInput, categories } from "../lib/market/model";
 import { demoProducts } from "../lib/market/demo";
@@ -33,6 +33,13 @@ test("localized links preserve searches and anchors without changing external de
   );
   assert.equal(localizedHref("//example.com", "en"), "//example.com");
   assert.equal(localizedHref("#catalogue", "en"), "#catalogue");
+});
+test("crawlable French links point at the canonical URL, English keeps its parameter", () => {
+  assert.equal(crawlableHref("/agents?q=code#catalogue", "fr"), "/agents?q=code#catalogue");
+  assert.equal(crawlableHref("/studio/new?lang=en", "fr"), "/studio/new");
+  assert.equal(crawlableHref("/", "fr"), "/");
+  assert.equal(crawlableHref("/agents", "en"), "/agents?lang=en");
+  assert.equal(crawlableHref("https://example.com", "fr"), "https://example.com");
 });
 test("messages translate in both languages with whitespace and interpolated product names preserved", () => {
   assert.equal(translate("Connexion", "en"), "Sign in");

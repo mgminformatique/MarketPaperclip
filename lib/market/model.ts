@@ -1,4 +1,8 @@
 import { z } from "zod";
+// The site's CSP forbids eval: without this, zod probes `new Function("")` when
+// the first object schema is created and the browser reports a CSP violation
+// on every page. Must run before any z.object() below.
+z.config({ jitless: true });
 export const categories = [
   "Développement",
   "Recherche & data",

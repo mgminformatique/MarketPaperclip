@@ -75,5 +75,5 @@ Le fichier `.openai/hosting.json` identifie l’instance Sites existante. Prése
 - Paiement unique par produit, sans panier multi-vendeurs, abonnement ni séquestre. Les destination charges transfèrent les fonds selon le fonctionnement de Stripe Connect.
 - La modération des fichiers est humaine. Il n’y a pas de scanner antivirus automatique ni de promesse de certification des agents.
 - Une commande conserve sa version d’achat; les mises à jour futures ne sont pas automatiquement concédées.
-- Les textes commerciaux sont des brouillons opérationnels à compléter avant lancement. Les options « licence commerciale » nécessitent un véritable fichier LICENSE fourni par le vendeur.
+- Conditions d’utilisation et de vente (commission de 15 %, livraison, remboursements) et politique de confidentialité (Loi 25) de lancement rédigées le 3 novembre 2026 ; l’adresse civique de l’exploitant reste à ajouter avant la vente aux consommateurs, et une relecture juridique est recommandée. Les options « licence commerciale » nécessitent un véritable fichier LICENSE fourni par le vendeur. Paiements : voir [docs/STRIPE.md](docs/STRIPE.md).
 - La vérification visuelle desktop/mobile dans le navigateur n’a pas pu être exécutée dans cet environnement. Les tests ne remplacent pas la recette des services Supabase et Stripe réels.

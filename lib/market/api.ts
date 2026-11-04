@@ -422,10 +422,11 @@ export async function marketApi(req: Request, c: Config) {
     ) {
       if (!ready(c)) return ctx.json({ posts: [], more: false });
       // "+" of a timezone offset arrives as a space when left unencoded.
-      const before = z
-        .string()
-        .datetime({ offset: true })
-        .parse((url.searchParams.get("before") || "").replace(" ", "+"));
+      // Without a cursor, the first page is served.
+      const cursor = url.searchParams.get("before");
+      const before = cursor
+        ? z.string().datetime({ offset: true }).parse(cursor.replace(" ", "+"))
+        : undefined;
       const { data: profile, error } = await ctx
         .client!.from("profiles")
         .select("id")

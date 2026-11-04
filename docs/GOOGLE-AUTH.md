@@ -8,7 +8,7 @@ JavaScript public ni aux variables Netlify.
 ## État au 3 novembre 2026 : actif
 
 - Connexion Google **en production** depuis le déploiement Netlify `6aea47008049355b373825a9` (branche `feature/profils`), `GOOGLE_AUTH_ENABLED=true`. Vérifié : bouton « Continuer avec Google » / « Continue with Google » dans la fenêtre de connexion et d'inscription, route `/api/auth/google` → Supabase (PKCE, cookie `HttpOnly; Secure`) → page de connexion Google sans erreur de client ni d'URI de redirection.
-- Projet Google Cloud : `marketpaperclip` (numéro 209736611718), propriétaire `info@mgminformatique.ca`. Écran de consentement externe et client OAuth « MarketPaperclip Web » créés dans la console par le propriétaire ; l'ancien projet `marketpaperclip-mgm` n'est plus utilisé.
+- Projet Google Cloud : `marketpaperclip` (numéro 209736611718), propriétaire `info@mgminformatique.ca`. Écran de consentement externe et client OAuth « MarketPaperclip Web » créés dans la console par le propriétaire ; l'ancien projet `marketpaperclip-mgm` (vide, sans facturation) a été supprimé le 3 novembre 2026 à la demande du propriétaire ; il reste récupérable pendant 30 jours avec `gcloud projects undelete marketpaperclip-mgm`.
 - Fournisseur Google activé dans Supabase (`ltommtumsvvqxdknpkfd`) avec ce client. L'ID client est public ; le secret n'est conservé que dans Supabase.
 - `scripts/supabase-config-push.mjs` ne touche pas ce réglage : avec le CLI 2.122, `--diff` le classe `remote_only` (non déclaré dans `config.toml`) et seules les propriétés déclarées sont envoyées. Toujours relire `--diff` avant un envoi.
 - Si un visiteur voit « Accès bloqué » chez Google, l'application est restée en mode test : *Google Auth Platform → Audience → Publier l'application*.
