@@ -143,6 +143,7 @@ export function money(cents: number, locale: "fr" | "en" = "fr") {
   return new Intl.NumberFormat(locale === "en" ? "en-CA" : "fr-CA", {
     style: "currency",
     currency: "CAD",
+    currencyDisplay: "code",
     maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
   }).format(cents / 100);
 }

@@ -1,0 +1,17 @@
+{
+  "title": "Paperclip Test",
+  "tagline": "A minimal EN/FR instructions agent to test your download and Paperclip setup.",
+  "description": "Paperclip Test is a small, real instructions package by MGM Informatique for validating the MarketPaperclip purchase and download flow. Install the AGENTS.md entry file manually in your Paperclip agent's instruction bundle, then run the English or French smoke-test task. Includes versioned instructions, a descriptive manifest, MIT license, English and French installation guides, and sample tasks. This is a test agent, not a production business automation. Paperclip, the runtime, model access and model usage are not included. The archive is inspected and integrity-checked; an actual model run in your own Paperclip installation is still required to verify compatibility. This independent package is not an official Paperclip product.",
+  "category": "Développement",
+  "kind": "agent",
+  "engine": "Multi-modèles",
+  "version": "1.0.0",
+  "price_cents": 100,
+  "currency": "cad",
+  "license": "MIT",
+  "tags": ["paperclip", "test", "instructions", "bilingual"],
+  "requirements": "Your own Paperclip installation with a working local adapter supporting instructions bundles, plus your model subscription or API access. Model costs are additional. No secrets or external permissions are required by this package.",
+  "setup": "Extract the ZIP and read README.md or README.fr.md. Create a separate test agent in Paperclip. Copy AGENTS.md into its managed instructions entry file, or set the extracted directory as its external bundle root. Save, run your adapter's setup check, then assign MP_TEST_READY (English) or MP_TEST_PRET (French). Compare the reply with examples/smoke-test.md. Keep recurring heartbeats disabled while testing. Installation is manual; manifest.json is distribution metadata, not an automatic company-import file.",
+  "agent_count": 1,
+  "status": "draft"
+}

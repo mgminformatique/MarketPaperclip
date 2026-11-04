@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { localizedHref, requestLocale } from "../i18n/locale";
 import { publicConfig } from "./config";
 import { demoProducts } from "./demo";
 import {
@@ -1466,6 +1467,7 @@ export async function marketApi(req: Request, c: Config) {
       const session = await st.checkout.sessions.create(
         {
           mode: "payment",
+          locale: requestLocale(req) === "fr" ? "fr-CA" : "en",
           customer_email: u.email,
           client_reference_id: u.id,
           metadata: { order_id: order.id, buyer_id: u.id },
@@ -1474,6 +1476,9 @@ export async function marketApi(req: Request, c: Config) {
               price_data: {
                 currency: order.currency,
                 unit_amount: order.amount_cents,
+                // Reconciliation expects total = listed price + tax. Do not
+                // inherit an inclusive-tax default from the Stripe Dashboard.
+                tax_behavior: "exclusive",
                 product_data: {
                   name: order.product_title,
                   description: `Version ${order.product_version} · ${order.license}`,
@@ -1489,9 +1494,12 @@ export async function marketApi(req: Request, c: Config) {
           },
           billing_address_collection: "required",
           automatic_tax: { enabled: c.STRIPE_TAX_ENABLED === "true" },
-          success_url: siteOrigin(c, req) + "/library?payment=processing",
+          success_url:
+            siteOrigin(c, req) +
+            localizedHref("/library?payment=processing", requestLocale(req)),
           cancel_url:
-            siteOrigin(c, req) + "/agents/" + p.slug + "?checkout=cancelled",
+            siteOrigin(c, req) +
+            localizedHref("/agents/" + p.slug + "?checkout=cancelled", requestLocale(req)),
         },
         { idempotencyKey: "checkout-" + order.id },
       );

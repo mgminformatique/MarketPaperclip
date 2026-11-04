@@ -141,6 +141,7 @@ export function compactMoney(cents: number, locale: "fr" | "en" = "fr") {
   return new Intl.NumberFormat(locale === "en" ? "en-CA" : "fr-CA", {
     style: "currency",
     currency: "CAD",
+    currencyDisplay: "code",
     notation: cents >= 1000000 ? "compact" : "standard",
     maximumFractionDigits: cents % 100 === 0 || cents >= 1000000 ? 0 : 2,
   }).format(cents / 100);

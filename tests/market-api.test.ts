@@ -406,6 +406,36 @@ function checkoutNetwork(opts: {
   return { state, calls };
 }
 
+test("Checkout keeps the chosen language and adds tax to the CAD price", async () => {
+  for (const locale of ["en", "fr"]) {
+    const { state } = checkoutNetwork({});
+    const response = await marketApi(
+      request(
+        "checkout",
+        "POST",
+        { product_id: productId, license_accepted: true },
+        { cookie: sessionCookie() + "; mp-language=" + locale },
+      ),
+      { ...launched, STRIPE_TAX_ENABLED: "true" },
+    );
+    assert.equal(response.status, 200);
+    const body = state.stripeBody!;
+    assert.equal(body.get("locale"), locale === "fr" ? "fr-CA" : "en");
+    assert.equal(body.get("line_items[0][price_data][currency]"), "cad");
+    assert.equal(body.get("line_items[0][price_data][tax_behavior]"), "exclusive");
+    assert.equal(body.get("automatic_tax[enabled]"), "true");
+    const success = new URL(body.get("success_url")!);
+    const cancel = new URL(body.get("cancel_url")!);
+    assert.equal(success.origin, origin);
+    assert.equal(success.pathname, "/library");
+    assert.equal(success.searchParams.get("payment"), "processing");
+    assert.equal(success.searchParams.get("lang"), locale);
+    assert.equal(cancel.origin, origin);
+    assert.equal(cancel.searchParams.get("checkout"), "cancelled");
+    assert.equal(cancel.searchParams.get("lang"), locale);
+  }
+});
+
 test("Checkout charges an accepted offer, never more than the current price", async () => {
   const future = new Date(Date.now() + 3600_000).toISOString();
   const { state } = checkoutNetwork({

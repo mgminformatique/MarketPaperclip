@@ -1256,9 +1256,7 @@ export function ProductEditor({
                   {cents === null ? (
                     t("Votre prix")
                   ) : (
-                    <>
-                      {money(cents, locale)} <small>{t("CAD")}</small>
-                    </>
+                    money(cents, locale)
                   )}
                 </strong>
               )}

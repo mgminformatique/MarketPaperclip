@@ -4,6 +4,7 @@ import { requestLocale, localeChoice, localizedHref, crawlableHref } from "../li
 import { translate } from "../lib/i18n/translate";
 import { money, productInput, categories } from "../lib/market/model";
 import { demoProducts } from "../lib/market/demo";
+import { compactMoney } from "../lib/market/market";
 
 const make = (query: string, cookie = "", referer = "") =>
   new Request("https://marketpaperclip.test/agents" + query, {
@@ -95,8 +96,12 @@ test("messages translate in both languages with whitespace and interpolated prod
   assert.equal(translate(null, "en"), null);
 });
 test("localized currency keeps Canadian dollars and canonical product enums stay valid", () => {
-  assert.equal(money(4999, "en"), "$49.99");
+  assert.match(money(4999, "en"), /^CAD\s49\.99$/);
   assert.match(money(4999, "fr"), /49,99/);
+  for (const locale of ["en", "fr"] as const) {
+    assert.match(money(100, locale), /CAD/);
+    assert.match(compactMoney(1234500, locale), /CAD/);
+  }
   assert.equal(categories[0], "Développement");
   assert.equal(translate(categories[0], "en"), "Development");
   const p = demoProducts[0];

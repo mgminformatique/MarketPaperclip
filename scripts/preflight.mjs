@@ -34,7 +34,7 @@ if (
 }
 if (process.env.STRIPE_SECRET_KEY) {
   console.log(
-    process.env.STRIPE_SECRET_KEY.startsWith("sk_live_")
+    /^(sk|rk)_live_/.test(process.env.STRIPE_SECRET_KEY)
       ? "MODE LIVE: perform the documented live acceptance review before launch"
       : "MODE TEST: no live payment acceptance verified",
   );

@@ -1,0 +1,15 @@
+{
+  "name": "paperclip-test",
+  "display_name": "Paperclip Test",
+  "version": "1.0.0",
+  "author": "MGM Informatique",
+  "license": "MIT",
+  "entrypoint": "AGENTS.md",
+  "languages": ["en", "fr"],
+  "installation": "manual-instructions-bundle",
+  "permissions": [],
+  "runtime_included": false,
+  "model_usage_included": false,
+  "purpose": "Instructions-loading smoke test and supplied-task summary",
+  "format_note": "Distribution metadata, not an official Paperclip import schema."
+}

@@ -17,6 +17,8 @@
     "test": "node --import=tsx --test tests/api.test.ts tests/market-api.test.ts tests/database.test.mjs tests/market.test.mjs tests/interactions.test.ts tests/i18n.test.ts tests/seo.test.ts tests/auth-email.test.ts tests/profile-api.test.ts",
     "check": "npm run typecheck && npm test",
     "preflight": "node scripts/preflight.mjs",
+    "audit:launch": "node scripts/audit-launch.mjs",
+    "verify:sale": "node scripts/verify-live-sale.mjs",
     "test:client": "node --experimental-vm-modules scripts/check-client-interactions.mjs"
   },
   "dependencies": {
