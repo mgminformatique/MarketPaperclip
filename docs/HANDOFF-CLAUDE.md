@@ -8,7 +8,7 @@ Un marché d’agents **entre utilisateurs**, à la manière d’un marché cryp
 
 Décisions qui remplacent le handoff du 1er novembre :
 - Les prix sont **visibles** (réglable par `SHOW_PRICES=false`), toujours fixés par le vendeur; aucun prix inventé.
-- Les paiements restent fermés tant que les clés Stripe, le webhook et la commission ne sont pas saisis dans Netlify par le propriétaire.
+- Les paiements restent fermés tant que les clés Stripe, le webhook et la commission ne sont pas saisis dans Netlify par le propriétaire. *Fait le 3 novembre 2026 au soir : paiements ouverts, commission de 15 %, voir [STRIPE.md](STRIPE.md).*
 
 ## Livré sur la branche `feature/marche-netlify`
 
@@ -41,7 +41,7 @@ Mise à jour du 3 novembre (matin), avec l’accord du propriétaire :
 Reste à faire :
 - **Domaine en service (3 novembre 2026)** : DNS GoDaddy A `@` → `75.2.60.5`, CNAME `www` → `marketpaperclip.netlify.app`; certificat Let’s Encrypt émis par Netlify pour `marketpaperclip.com` et `www`. `https://marketpaperclip.com` répond (HSTS), `www` et `http` redirigent en 301 vers lui; `marketpaperclip.netlify.app` reste servi avec `noindex`. Connexion vérifiée dans Firefox sur le domaine.
 - SEO : `node scripts/indexnow.mjs` (refuse d’envoyer un sitemap qui n’est pas celui du site, p. ex. pendant qu’un cache DNS sert encore le parking GoDaddy); reste Search Console (TXT de vérification chez GoDaddy, sitemap) et Bing Webmaster.
-- Clés et webhook Stripe dans Netlify; restreindre « MarketPaperclip Courriels » à la boîte info@ (RBAC Exchange pour les applications).
+- ~~Clés et webhook Stripe dans Netlify~~ (fait le 3 novembre 2026, [STRIPE.md](STRIPE.md)); restreindre « MarketPaperclip Courriels » à la boîte info@ (RBAC Exchange pour les applications).
 - Branche `feature/marche-netlify` encore locale (non poussée sur GitHub).
 
 ## Accès disponibles sur le poste

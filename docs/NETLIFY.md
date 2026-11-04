@@ -78,7 +78,7 @@ Netlify émet ensuite le certificat Let's Encrypt (quelques minutes après la pr
 Le plus simple : `node scripts/stripe-configure.mjs --site <SITE_ID> --fee-bps 1500 --apply` crée le webhook et enregistre les clés dans Netlify à partir d'une invite masquée. Voir [STRIPE.md](STRIPE.md). À la main :
 
 1. Mode **TEST** d'abord. Connect activé (comptes Express, Canada, CAD).
-2. Endpoint webhook : `https://marketpaperclip.com/api/webhooks/stripe`, événements : `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`.
+2. Endpoint webhook : `https://marketpaperclip.com/api/webhooks/stripe`, événements : `account.updated`, `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`.
 3. Dans Netlify (*Site configuration → Environment variables*), saisir vous-même : `STRIPE_SECRET_KEY` (secrète), `STRIPE_WEBHOOK_SECRET` (secrète), `PLATFORM_FEE_BPS` (ex. `1000` = 10 %), puis `LAUNCH_READY=true` et `PAYMENTS_ENABLED=true`. Redéployer.
 4. Recette TEST : onboarding vendeur, achat, offre acceptée puis payée, remboursement depuis la modération.
 

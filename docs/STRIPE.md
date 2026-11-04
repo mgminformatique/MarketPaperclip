@@ -2,6 +2,21 @@
 
 Décision du propriétaire (3 novembre 2026) : produits **payants** dès le lancement, commission de **15 %** (`PLATFORM_FEE_BPS=1500`).
 
+## État (3 novembre 2026, 23 h 30, heure de l'Est)
+
+- **Paiements ouverts en production.** Clé **restreinte** du mode réel saisie par le propriétaire dans la boîte de dialogue masquée. Le script a vérifié toutes les permissions nécessaires, y compris une session Checkout d'essai de 1 $ CAD, aussitôt annulée.
+- Compte Stripe « MarketPaperClip » `acct_1UXHVqCzSwrXhCYK` : Canada, CAD, paiements, versements et dossier validés, Connect accessible.
+- Webhook `we_1UXvmdCzSwrXhCYKTl6aYCmI` : actif, 8 événements, API `2026-10-28.endive`.
+- Netlify, contexte production : `STRIPE_SECRET_KEY` et `STRIPE_WEBHOOK_SECRET` (secrètes), `PLATFORM_FEE_BPS=1500` et `PAYMENTS_ENABLED=true`. Les aperçus de déploiement gardent `PAYMENTS_ENABLED=false` et n'ont pas la clé.
+- Déploiement de production `6aeab46fe80c6a780cba706e` (commit `3473f69`). Vérifié en ligne :
+  - `/api/config` répond `"payments":true,"feeBps":1500,"launched":true` ;
+  - sans session, `connect/onboard`, `connect/status`, `connect/dashboard` et `checkout` répondent 401 ; avec une origine étrangère, 403 ;
+  - un webhook non signé reçoit 400 « Invalid signature » ;
+  - les pages publiques répondent 200 et une fiche inconnue 404.
+- Catalogue encore vide : la première fiche reste à publier par le propriétaire (voir « Premier achat réel »).
+
+Pour tester les routes `POST` avec curl, envoyer `Origin: https://marketpaperclip.com`. Sans cet en-tête, la garde d'origine répond 403 avant même la vérification de session.
+
 ## Ce qu'il faut dans Stripe
 
 1. Compte Stripe activé en mode réel (identité de l'entreprise et compte bancaire validés) : *Paiements acceptés : oui* dans le résumé du script ci-dessous.
@@ -30,8 +45,8 @@ Le script ne touche pas à `PAYMENTS_ENABLED`. Ouvrir les ventes est une étape 
 
 ## Premier achat réel
 
-1. Le vendeur active son compte Stripe depuis le studio, puis publie sa fiche (validation par un modérateur).
-2. Achat avec une vraie carte depuis un autre compte : Stripe Checkout, retour sur le site, commande *Payée* (webhook), téléchargement.
+1. Le vendeur active son compte Stripe depuis le studio, puis publie sa fiche (validation par un modérateur). Les comptes vendeurs sont créés au Canada (`country: "CA"`).
+2. Achat avec une vraie carte depuis un autre compte (le créateur ne peut pas acheter sa propre fiche) : Stripe Checkout, retour sur le site, commande *Payée* (webhook), téléchargement.
 3. Remboursement depuis la modération : transfert et commission inversés, téléchargement retiré.
 
 ## À décider
