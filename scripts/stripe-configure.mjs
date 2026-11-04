@@ -6,8 +6,10 @@
 //
 // The owner types the Stripe secret key (sk_live_…, sk_test_… or a restricted
 // rk_ key) at a hidden prompt (or provides STRIPE_SECRET_KEY in the
-// environment, e.g. from a credential store). The script shows which Stripe
-// account the key opens and, with --apply and after confirmation:
+// environment, e.g. from a credential store or a dialog). The script shows
+// which Stripe account the key opens, checks that a restricted key has every
+// permission the site uses (exit code 2 and the list of missing permissions
+// otherwise), and, with --apply and after confirmation:
 //   1. creates the webhook endpoint <site-url>/api/webhooks/stripe, pinned to
 //      the API version of the installed stripe SDK (an older endpoint with the
 //      same URL is disabled, not deleted: Stripe never shows a signing secret
@@ -61,7 +63,15 @@ const save = () => {
 };
 // Stripe error messages can quote part of a key: mask anything key-shaped.
 const mask = (s) =>
-  String(s).replace(/\b(sk|rk|pk|whsec)_[A-Za-z0-9_*]+/g, "$1_[masqué]");
+  String(s).replace(/\b(sk|rk|pk|whsec)_[A-Za-z0-9_*.…]+/g, "$1_[masqué]");
+
+// Drop bracketed-paste markers, control characters (a Ctrl+V typed before
+// pasting) and whitespace copied with the key.
+const clean = (v) =>
+  String(v)
+    .replace(/\x1b\[20[01]~/g, "")
+    .replace(/[\x00-\x1f\x7f]/g, "")
+    .replace(/\s+/g, "");
 
 function askHidden(prompt) {
   if (!process.stdin.isTTY)
@@ -80,14 +90,7 @@ function askHidden(prompt) {
       for (const ch of chunk) {
         if (ch === "\r" || ch === "\n") {
           cleanup();
-          // Drop bracketed-paste markers, control characters (a Ctrl+V typed
-          // before pasting) and whitespace copied with the key.
-          resolve(
-            value
-              .replace(/\x1b\[20[01]~/g, "")
-              .replace(/[\x00-\x1f\x7f]/g, "")
-              .replace(/\s+/g, ""),
-          );
+          resolve(clean(value));
           return;
         }
         if (ch === "\u0003") {
@@ -120,7 +123,7 @@ function askLine(prompt) {
 
 async function stripeApi(key, method, path, pairs) {
   const body = pairs ? new URLSearchParams(pairs) : undefined;
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
+  const res = await fetch(`${process.env.STRIPE_API_BASE || "https://api.stripe.com"}/v1/${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${key}`,
@@ -158,6 +161,7 @@ function netlifySet(key, value, secret) {
 }
 
 const KEY = /^(sk|rk)_(live|test)_[A-Za-z0-9]{16,}$/;
+// A restricted key (rk_) is accepted once its permissions are checked below.
 // What is wrong with a pasted value, without ever repeating it.
 const keyKind = (k) =>
   !k
@@ -179,13 +183,13 @@ const keyProblem = (k) =>
       "La clé est masquée ou incomplète : cliquez « Révéler » à côté de « Clé secrète » avant de la copier.",
     other: "Ce n’est pas une clé secrète Stripe (attendu : sk_live_…, sk_test_…, rk_live_… ou rk_test_…).",
   })[keyKind(k)];
-let key = process.env.STRIPE_SECRET_KEY || "";
+let key = clean(process.env.STRIPE_SECRET_KEY || "");
 let kind = KEY.exec(key);
 if (!process.env.STRIPE_SECRET_KEY)
   for (let attempt = 1; attempt <= 3 && !kind; attempt++) {
     key = await askHidden(
       attempt === 1
-        ? "Clé secrète Stripe (sk_… ou rk_…), invisible à la saisie : "
+        ? "Clé secrète Stripe (sk_live_…), invisible à la saisie : "
         : "Nouvel essai — clé secrète Stripe : ",
     );
     kind = KEY.exec(key);
@@ -231,6 +235,53 @@ try {
   report.existingWebhooks = "error: " + e.message;
 }
 
+// A restricted key must allow everything the site does. Each probe is
+// harmless: a read, or a write aimed at an object that does not exist (Stripe
+// checks the key's permissions first, then answers "No such …"). The Checkout
+// probe creates a 1 $ session like the site does and expires it at once, so it
+// can never be paid.
+report.missing = [];
+function denied(label, message) {
+  if (!/required permissions/i.test(message)) return; // "No such …": allowed
+  const need = /Enabling (.+?) permissions? on this key/i.exec(message)?.[1] || "?";
+  const url = /https:\/\/dashboard\.stripe\.com\/[^\s'"]+/.exec(message)?.[0];
+  report.missing.push({ label, need });
+  if (url) report.editUrl = url.replace(/[.,]+$/, "");
+}
+if (report.restricted) {
+  const ghost = "acct_1MGMProbeDoesNotExist";
+  const probes = [
+    ["Comptes vendeurs (lecture)", "GET", "accounts?limit=1"],
+    ["Comptes vendeurs (création)", "POST", "accounts", [["mgm_probe_unknown_parameter", "1"]]],
+    ["Liens d’activation vendeur", "POST", "account_links",
+      [["account", ghost], ["type", "account_onboarding"], ["refresh_url", siteUrl], ["return_url", siteUrl]]],
+    ["Liens de connexion vendeur", "POST", `accounts/${ghost}/login_links`],
+    ["Remboursements", "POST", "refunds", [["payment_intent", "pi_MGMProbeDoesNotExist"]]],
+    ["Paiements (lecture)", "GET", "payment_intents?limit=1"],
+    ["Charges (lecture)", "GET", "charges?limit=1"],
+    ["Webhooks", "POST", "webhook_endpoints/we_MGMProbeDoesNotExist", [["disabled", "true"]]],
+  ];
+  for (const [label, method, path, pairs] of probes)
+    await stripeApi(key, method, path, pairs).catch((e) => denied(label, e.message));
+  try {
+    const cs = await stripeApi(key, "POST", "checkout/sessions", [
+      ["mode", "payment"],
+      ["line_items[0][quantity]", "1"],
+      ["line_items[0][price_data][currency]", "cad"],
+      ["line_items[0][price_data][unit_amount]", "100"],
+      ["line_items[0][price_data][product_data][name]", "Vérification MarketPaperclip (annulée)"],
+      ["success_url", siteUrl + "/library"],
+      ["cancel_url", siteUrl + "/"],
+    ]);
+    await stripeApi(key, "POST", `checkout/sessions/${cs.id}/expire`).catch((e) =>
+      denied("Sessions Checkout (annulation)", e.message),
+    );
+  } catch (e) {
+    denied("Sessions Checkout (création)", e.message);
+    if (!/required permissions/i.test(e.message)) report.checkoutProbe = e.message;
+  }
+}
+
 const A = report.account;
 console.log(`
 Compte Stripe : ${A.name || "(sans nom)"} — ${A.id} (${A.country}, ${String(A.currency).toUpperCase()})
@@ -240,7 +291,20 @@ Versements : ${A.payouts_enabled ? "oui" : "non"} · Dossier complété : ${A.de
 Connect : ${report.connect === "ok" ? "accessible" : report.connect}
 Webhook visé : ${webhookUrl}
 Commission : ${(Number(feeBps) / 100).toLocaleString("fr-CA")} %`);
+if (report.restricted)
+  console.log(
+    report.missing.length
+      ? "\nPermissions manquantes sur cette clé restreinte :\n" +
+          report.missing.map((m) => `  - ${m.label} : ${m.need}`).join("\n") +
+          (report.editUrl ? `\nModifier la clé : ${report.editUrl}` : "")
+      : "Permissions de la clé restreinte : toutes celles du site sont présentes.",
+  );
+if (report.checkoutProbe) console.log("Session Checkout d’essai refusée : " + report.checkoutProbe);
 save();
+if (report.missing.length) {
+  console.log("\nRien n’a été modifié. Ajoutez ces permissions à la clé dans Stripe, enregistrez, puis réessayez.");
+  process.exit(2);
+}
 
 if (!apply) {
   console.log("\nVérification seulement : rien n’a été modifié (ajoutez --apply pour configurer).");

@@ -6,7 +6,7 @@ Décision du propriétaire (3 novembre 2026) : produits **payants** dès le lanc
 
 1. Compte Stripe activé en mode réel (identité de l'entreprise et compte bancaire validés) : *Paiements acceptés : oui* dans le résumé du script ci-dessous.
 2. **Connect** activé, avec le profil de plateforme complété (*Connect → Démarrer*). Chaque vendeur, y compris MGM Informatique pour ses propres produits, ouvre ensuite son compte Express depuis le studio du site (vérification d'identité par Stripe).
-3. La clé secrète du mode réel : *Développeurs → Clés API → Clé secrète*.
+3. Une clé du mode réel : la clé secrète standard (*Développeurs → Clés API → Clé secrète*) ou une **clé restreinte** (`rk_live_…`, choix du propriétaire le 3 novembre 2026). La clé publiable (`pk_…`) ne sert pas : le paiement passe par une redirection serveur vers Stripe Checkout. Permissions qu'une clé restreinte doit avoir (le script les vérifie et nomme celles qui manquent) : comptes Connect (*Accounts*) en écriture, liens d'activation et de connexion vendeur en écriture, *Checkout Sessions* en écriture, *Refunds* en écriture, *PaymentIntents* et *Charges* en lecture, *Webhook Endpoints* en écriture (pour la configuration).
 
 ## Saisir la clé sans qu'elle circule
 
