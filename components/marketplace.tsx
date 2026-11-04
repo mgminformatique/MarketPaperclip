@@ -36,6 +36,7 @@ import {
   Menu,
   Package,
   Palette,
+  Paperclip,
   Pencil,
   Plus,
   Rocket,
@@ -857,7 +858,15 @@ function Catalog({
               <br />
               <strong>{t("VOS RÈGLES.")}</strong>
             </span>
-            <span className="ecosystem-name claude-mark">{t("✳ Claude")}</span>
+            <span className="ecosystem-name">
+              <Paperclip size={21} className="paperclip-mark" />
+              {t(" Paperclip")}
+            </span>
+            <span className="ecosystem-name claude-mark">
+              {/* U+FE0E keeps the text glyph (and its colour) where an emoji font exists */}
+              <span className="claude-glyph">{t("✳︎")}</span>
+              {t(" Claude")}
+            </span>
             <span className="ecosystem-name">
               <span className="openai-mark">{t("◎")}</span>
               {t(" OpenAI")}
@@ -867,11 +876,11 @@ function Catalog({
               {t(" Gemini")}
             </span>
             <span className="ecosystem-name">
-              <Terminal size={21} />
+              <Terminal size={21} className="ollama-mark" />
               {t(" Ollama")}
             </span>
             <span className="ecosystem-name">
-              <Github size={21} />
+              <Github size={21} className="github-mark" />
               {t(" GitHub")}
             </span>
             <span className="ecosystem-more">

@@ -787,14 +787,30 @@ small {
   font-family: Georgia, serif;
   font-size: 20px;
 }
+/* Brand colours on the icons only; the names keep the strip's grey. */
+.paperclip-mark {
+  color: var(--lime);
+}
+.claude-glyph {
+  color: #d97757;
+}
 .openai-mark {
   font-size: 27px;
   line-height: 1;
+  color: #10a37f;
 }
 .gemini-mark {
   font-size: 24px;
-  color: #959db4;
   line-height: 1;
+  background: linear-gradient(135deg, #4285f4 20%, #9b72cb 55%, #d96570 85%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.ollama-mark,
+.github-mark {
+  color: var(--text);
 }
 .ecosystem-more {
   display: flex;
@@ -4659,4 +4675,15 @@ small {
   font-size: 20px;
   line-height: 1.5;
   letter-spacing: -0.4px;
+}
+
+/* With Paperclip in the provider strip, five names do not fit on phones
+   narrower than 392 px: hide Ollama there too (GitHub already hides ≤ 480 px). */
+@media (max-width: 391px) {
+  .ecosystem-bar {
+    gap: 14px;
+  }
+  .ecosystem-name:nth-last-child(3) {
+    display: none;
+  }
 }
