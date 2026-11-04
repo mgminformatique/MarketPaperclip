@@ -19,6 +19,7 @@
     "preflight": "node scripts/preflight.mjs",
     "audit:launch": "node scripts/audit-launch.mjs",
     "verify:sale": "node scripts/verify-live-sale.mjs",
+    "stripe:readiness": "node scripts/stripe-readiness.mjs",
     "test:client": "node --experimental-vm-modules scripts/check-client-interactions.mjs"
   },
   "dependencies": {

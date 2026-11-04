@@ -19,6 +19,18 @@ Pour tester les routes `POST` avec curl, envoyer `Origin: https://marketpapercli
 
 ## Ce qu'il faut dans Stripe
 
+### Automatisation depuis le poste
+
+Le CLI officiel Stripe `1.55.8` et son extension Projects `0.51.0` ont été installés sur le poste le 4 novembre 2026. La commande `stripe` est disponible dans `~/.local/bin/`. Cette installation ne change pas la clé de production Netlify et ne crée aucun compte, abonnement ou service cloud.
+
+La première connexion se fait avec `stripe login --non-interactive`. Le propriétaire autorise le poste sur la page officielle Stripe, sélectionne le compte MarketPaperClip et l'accès au mode réel; l'opérateur exécute ensuite la commande de finalisation retournée par le CLI. Les identifiants sont gérés par le CLI, sans clé copiée dans le chat. Depuis le CLI 1.50, Stripe peut aussi exiger l'activation de l'accès CLI dans *Settings → Team and security → MCP and CLI access*. [Documentation de connexion](https://docs.stripe.com/cli/login).
+
+Après connexion, `npm run stripe:readiness` vérifie en lecture seule le compte réel attendu `acct_1UXHVqCzSwrXhCYK`, les comptes Connect existants, leurs exigences et le webhook de MarketPaperclip. Il permet de rechercher une liaison vendeur manquante avant de recréer un compte. La sortie ne contient ni clé, ni adresse, ni information bancaire. Ce contrôle ne remplace pas une vente confirmée et un téléchargement par le véritable acheteur.
+
+[Stripe Projects](https://docs.stripe.com/projects) automatise l'association et la gestion des services d'infrastructure et de leurs accès. MarketPaperclip dispose déjà de Supabase et Netlify : aucun nouveau service n'a été provisionné. Pour les vendeurs, l'API Connect permet de préparer le compte et le formulaire; Stripe peut proposer au propriétaire de réutiliser des informations déjà vérifiées pendant l'[onboarding partagé](https://docs.stripe.com/connect/networked-onboarding). L'autorisation d'accès, les accords et les vérifications demandés par Stripe restent à confirmer par le titulaire.
+
+### Configuration du marketplace
+
 1. Compte Stripe activé en mode réel (identité de l'entreprise et compte bancaire validés) : *Paiements acceptés : oui* dans le résumé du script ci-dessous.
 2. **Connect** activé, avec le profil de plateforme complété (*Connect → Démarrer*). Chaque vendeur, y compris MGM Informatique pour ses propres produits, ouvre ensuite son compte Express depuis le studio du site (vérification d'identité par Stripe).
 3. Une clé du mode réel : la clé secrète standard (*Développeurs → Clés API → Clé secrète*) ou une **clé restreinte** (`rk_live_…`, choix du propriétaire le 3 novembre 2026). La clé publiable (`pk_…`) ne sert pas : le paiement passe par une redirection serveur vers Stripe Checkout. Permissions qu'une clé restreinte doit avoir (le script les vérifie et nomme celles qui manquent) : comptes Connect (*Accounts*) en écriture, liens d'activation et de connexion vendeur en écriture, *Checkout Sessions* en écriture, *Refunds* en écriture, *PaymentIntents* et *Charges* en lecture, *Webhook Endpoints* en écriture (pour la configuration).
