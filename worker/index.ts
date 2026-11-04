@@ -1,7 +1,7 @@
 import handler from "vinext/server/fetch-handler";
 import { runWithConnectorBinding } from "../lib/connector-context";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
-import { requestLocale } from "../lib/i18n/locale";
+import { localeChoice } from "../lib/i18n/locale";
 import { runWithMarketEnv } from "../lib/market/runtime";
 import type { Config } from "../lib/market/server";
 
@@ -44,7 +44,7 @@ const worker = {
           "cache-control": "no-store",
         },
       });
-    const locale = requestLocale(request);
+    const { locale, remember: rememberLocale } = localeChoice(request);
     const localizedHeaders = new Headers(request.headers);
     localizedHeaders.set("x-market-language", locale);
     // Never trust a client-supplied value: only the platform knows the peer.
@@ -80,9 +80,7 @@ const worker = {
       runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx)),
     );
     const response = new Response(original.body, original);
-    if (
-      ["en", "fr"].includes(new URL(request.url).searchParams.get("lang") || "")
-    ) {
+    if (rememberLocale) {
       response.headers.append(
         "Set-Cookie",
         `mp-language=${locale}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`,

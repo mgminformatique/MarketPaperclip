@@ -10,7 +10,7 @@ import "@fontsource-variable/dm-sans";
 import "./globals.css";
 import "./market.css";
 async function currentLocale(): Promise<Locale> {
-  return (await headers()).get("x-market-language") === "en" ? "en" : "fr";
+  return (await headers()).get("x-market-language") === "fr" ? "fr" : "en";
 }
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await currentLocale();

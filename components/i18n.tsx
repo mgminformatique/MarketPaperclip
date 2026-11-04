@@ -16,7 +16,7 @@ import { localeCookie, type Locale } from "../lib/i18n/locale";
 const Context = createContext<{
   locale: Locale;
   setLocale: (locale: Locale) => void;
-}>({ locale: "fr", setLocale: () => {} });
+}>({ locale: "en", setLocale: () => {} });
 export function LocaleProvider({
   initialLocale,
   children,

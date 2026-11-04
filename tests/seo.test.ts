@@ -69,7 +69,8 @@ test("Public pages carry their own copy, a self canonical and both language alte
       assert.ok(copy.title.length <= 62, `${path} ${locale} title too long: ${copy.title.length}`);
       assert.ok(copy.description.length >= 70 && copy.description.length <= 170, `${path} ${locale} description length ${copy.description.length}`);
       const meta = routeMetadata(seoRoute(path), locale, origin);
-      assert.equal(meta.alternates?.canonical, origin + path + (locale === "en" ? "?lang=en" : ""));
+      assert.equal(meta.alternates?.canonical, origin + path + (locale === "fr" ? "?lang=fr" : ""));
+      assert.equal((meta.alternates?.languages as Record<string, string>)["x-default"], origin + path);
       assert.deepEqual(meta.alternates?.languages, languageAlternates(origin, path));
       assert.equal((meta.openGraph as { locale?: string })?.locale, locale === "en" ? "en_CA" : "fr_CA");
     }
@@ -85,7 +86,7 @@ test("Product metadata uses the listing's own words and cover", () => {
   const title = (meta.title as { absolute: string }).absolute;
   assert.match(title, /^Recon Pro — AI agent Claude \| MarketPaperclip$/);
   assert.ok((meta.description || "").length <= 158);
-  assert.equal(meta.alternates?.canonical, origin + "/agents/" + product.slug + "?lang=en");
+  assert.equal(meta.alternates?.canonical, origin + "/agents/" + product.slug);
   const images = (meta.openGraph as { images: { url: string }[] }).images;
   assert.equal(images[0].url, product.cover_url);
   assert.equal(clip("a ".repeat(200), 20).length <= 20, true);

@@ -1,22 +1,46 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requestLocale, localizedHref, crawlableHref } from "../lib/i18n/locale";
+import { requestLocale, localeChoice, localizedHref, crawlableHref } from "../lib/i18n/locale";
 import { translate } from "../lib/i18n/translate";
 import { money, productInput, categories } from "../lib/market/model";
 import { demoProducts } from "../lib/market/demo";
 
-test("language URLs take precedence over saved preference; unknown values fall back safely", () => {
-  const make = (query: string, cookie = "") =>
-    new Request("https://marketpaperclip.test/agents" + query, {
-      headers: { cookie },
-    });
-  assert.equal(requestLocale(make("")), "fr");
-  assert.equal(requestLocale(make("", "mp-language=en")), "en");
+const make = (query: string, cookie = "", referer = "") =>
+  new Request("https://marketpaperclip.test/agents" + query, {
+    headers: referer ? { cookie, referer } : { cookie },
+  });
+test("English by default; language URLs take precedence over saved preference; unknown values fall back safely", () => {
+  assert.equal(requestLocale(make("")), "en");
+  assert.equal(requestLocale(make("", "mp-language=fr")), "fr");
   assert.equal(requestLocale(make("?lang=fr", "mp-language=en")), "fr");
   assert.equal(requestLocale(make("?lang=en", "mp-language=fr")), "en");
-  assert.equal(requestLocale(make("?lang=invalid", "mp-language=en")), "en");
-  assert.equal(requestLocale(make("", "other-mp-language=en")), "fr");
-  assert.equal(requestLocale(make("", "mp-language=english")), "fr");
+  assert.equal(requestLocale(make("?lang=invalid", "mp-language=fr")), "fr");
+  assert.equal(requestLocale(make("", "other-mp-language=fr")), "en");
+  assert.equal(requestLocale(make("", "mp-language=fresh")), "en");
+});
+test("French is the default only for visitors coming from mgminformatique.ca, and is remembered", () => {
+  for (const referer of [
+    "https://mgminformatique.ca/",
+    "https://www.mgminformatique.ca/services",
+    "https://MGMINFORMATIQUE.CA",
+  ])
+    assert.deepEqual(localeChoice(make("", "", referer)), { locale: "fr", remember: true }, referer);
+  for (const referer of [
+    "https://mgminformatique.ca.example.com/",
+    "https://notmgminformatique.ca/",
+    "https://example.com/?from=mgminformatique.ca",
+    "https://www.google.com/",
+    "android-app://mgminformatique.ca/",
+    "not a url",
+  ])
+    assert.deepEqual(localeChoice(make("", "", referer)), { locale: "en", remember: false }, referer);
+  // An explicit or saved choice wins over the referring site.
+  assert.equal(requestLocale(make("?lang=en", "", "https://mgminformatique.ca/")), "en");
+  assert.equal(requestLocale(make("", "mp-language=en", "https://mgminformatique.ca/")), "en");
+  // Only explicit choices and the mgminformatique.ca default are saved.
+  assert.deepEqual(localeChoice(make("?lang=en")), { locale: "en", remember: true });
+  assert.deepEqual(localeChoice(make("", "mp-language=fr")), { locale: "fr", remember: false });
+  assert.deepEqual(localeChoice(make("")), { locale: "en", remember: false });
 });
 test("localized links preserve searches and anchors without changing external destinations", () => {
   assert.equal(
@@ -34,12 +58,13 @@ test("localized links preserve searches and anchors without changing external de
   assert.equal(localizedHref("//example.com", "en"), "//example.com");
   assert.equal(localizedHref("#catalogue", "en"), "#catalogue");
 });
-test("crawlable French links point at the canonical URL, English keeps its parameter", () => {
-  assert.equal(crawlableHref("/agents?q=code#catalogue", "fr"), "/agents?q=code#catalogue");
-  assert.equal(crawlableHref("/studio/new?lang=en", "fr"), "/studio/new");
-  assert.equal(crawlableHref("/", "fr"), "/");
-  assert.equal(crawlableHref("/agents", "en"), "/agents?lang=en");
-  assert.equal(crawlableHref("https://example.com", "fr"), "https://example.com");
+test("crawlable English links point at the canonical URL, French keeps its parameter", () => {
+  assert.equal(crawlableHref("/agents?q=code#catalogue", "en"), "/agents?q=code#catalogue");
+  assert.equal(crawlableHref("/studio/new?lang=fr", "en"), "/studio/new");
+  assert.equal(crawlableHref("/", "en"), "/");
+  assert.equal(crawlableHref("/agents", "fr"), "/agents?lang=fr");
+  assert.equal(crawlableHref("/agents?q=code#catalogue", "fr"), "/agents?q=code&lang=fr#catalogue");
+  assert.equal(crawlableHref("https://example.com", "en"), "https://example.com");
 });
 test("messages translate in both languages with whitespace and interpolated product names preserved", () => {
   assert.equal(translate("Connexion", "en"), "Sign in");

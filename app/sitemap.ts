@@ -8,7 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = canonicalOrigin(marketEnv().SITE_URL);
   const entries: MetadataRoute.Sitemap = [];
   const add = (path: string, lastModified?: string | null, images?: string[]) => {
-    for (const locale of ["fr", "en"] as const)
+    for (const locale of ["en", "fr"] as const)
       entries.push({
         url: localizedUrl(origin, path, locale),
         lastModified: lastModified || undefined,

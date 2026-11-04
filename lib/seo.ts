@@ -165,8 +165,10 @@ export function seoRoute(pathname: string): SeoRoute {
   return { kind: "missing", path };
 }
 
+// English is the default language: its URLs carry no parameter, French ones
+// carry ?lang=fr (see lib/i18n/locale.ts).
 export function localizedUrl(origin: string, path: string, locale: Locale) {
-  return origin + path + (locale === "en" ? "?lang=en" : "");
+  return origin + path + (locale === "fr" ? "?lang=fr" : "");
 }
 
 // Language-only codes: an English speaker anywhere (not only in Canada) is
@@ -175,7 +177,7 @@ export function languageAlternates(origin: string, path: string) {
   return {
     fr: localizedUrl(origin, path, "fr"),
     en: localizedUrl(origin, path, "en"),
-    "x-default": localizedUrl(origin, path, "fr"),
+    "x-default": localizedUrl(origin, path, "en"),
   };
 }
 
