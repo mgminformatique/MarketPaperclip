@@ -157,12 +157,44 @@ function netlifySet(key, value, secret) {
   }
 }
 
-const key = process.env.STRIPE_SECRET_KEY || (await askHidden("Clé secrète Stripe (sk_… ou rk_…), invisible à la saisie : "));
-const kind = /^(sk|rk)_(live|test)_[A-Za-z0-9]{16,}$/.exec(key);
+const KEY = /^(sk|rk)_(live|test)_[A-Za-z0-9]{16,}$/;
+// What is wrong with a pasted value, without ever repeating it.
+const keyKind = (k) =>
+  !k
+    ? "empty"
+    : /^pk_/.test(k)
+      ? "publishable"
+      : /^whsec_/.test(k)
+        ? "webhook-secret"
+        : /^(sk|rk)_/.test(k)
+          ? "masked-or-truncated"
+          : "other";
+const keyProblem = (k) =>
+  ({
+    empty: "Rien n’a été collé (collez avec Ctrl+Maj+V ou clic droit → Coller).",
+    publishable:
+      "C’est la clé publiable (pk_…). Il faut la clé secrète : cliquez « Révéler » à côté de « Clé secrète », puis copiez-la.",
+    "webhook-secret": "C’est un secret de webhook (whsec_…). Il faut la clé secrète de l’API (sk_…).",
+    "masked-or-truncated":
+      "La clé est masquée ou incomplète : cliquez « Révéler » à côté de « Clé secrète » avant de la copier.",
+    other: "Ce n’est pas une clé secrète Stripe (attendu : sk_live_…, sk_test_…, rk_live_… ou rk_test_…).",
+  })[keyKind(k)];
+let key = process.env.STRIPE_SECRET_KEY || "";
+let kind = KEY.exec(key);
+if (!process.env.STRIPE_SECRET_KEY)
+  for (let attempt = 1; attempt <= 3 && !kind; attempt++) {
+    key = await askHidden(
+      attempt === 1
+        ? "Clé secrète Stripe (sk_… ou rk_…), invisible à la saisie : "
+        : "Nouvel essai — clé secrète Stripe : ",
+    );
+    kind = KEY.exec(key);
+    if (!kind) console.log(keyProblem(key));
+  }
 if (!kind) {
-  report.error = "format";
+  report.error = "format: " + keyKind(key);
   save();
-  fail("Ce n’est pas une clé secrète Stripe (attendu : sk_live_…, sk_test_…, rk_live_… ou rk_test_…).");
+  fail(keyProblem(key));
 }
 const live = kind[2] === "live";
 report.mode = live ? "live" : "test";
