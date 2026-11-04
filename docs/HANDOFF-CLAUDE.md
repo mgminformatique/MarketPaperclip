@@ -1,5 +1,17 @@
 # MarketPaperclip — Handoff
 
+## Mise à jour du 4 novembre 2026 après la recette de lancement
+
+Production Netlify : déploiement `6aebb6a3a93714f201f59d7b` (`ready`), code `d665d38`, suite à `e1c9cfe`. Prix explicitement en CAD, langue du Checkout et des retours conservée, prix Stripe explicitement hors taxes, diagnostic des clés `rk_live_` corrigé. TypeScript, 103 tests, build Netlify, 50 contrôles publics et contrôle du client compilé FR/EN réussis; audit des dépendances de production sans vulnérabilité connue.
+
+Le propriétaire a demandé la publication de **Paperclip Test** : fiche `paperclip-test-bdbbb8c3`, 1 $ CA, version 1.0.0, MIT. Package réel dans `packages/paperclip-test/`, copie privée stockée et SHA-256 vérifiés. La publication a été faite par les procédures serveur avec l'autorisation du propriétaire; aucun achat n'a été simulé en production. **Aucun vendeur Connect relié et aucune commande au dernier contrôle : la vente réelle est encore à faire.** Le plafond autorisé est de 1 $ CA au total sur la carte du propriétaire. Il faut terminer l'activation vendeur dans le studio, puis utiliser un autre compte acheteur.
+
+Le domaine et les DNS publics répondent depuis le poste. Le propriétaire a signalé « unable to connect » au domaine principal mais a confirmé l'ouverture de `https://marketpaperclip.netlify.app/studio`. Ne pas déclarer la cause résolue. L'accès au navigateur de l'agent était indisponible pendant cette session.
+
+Voir [le rapport et les conditions du lancement international](LAUNCH-AUDIT-2026-11-04.md). Scripts : `npm run audit:launch` (contrôles publics), `npm run verify:sale` (preuve du téléchargement par le vrai compte acheteur après paiement, entrée privée sur stdin). Aucun budget publicitaire n'a été engagé. Ne pas annoncer un onboarding vendeur mondial : le serveur crée encore les comptes Connect au Canada. Taxes et parcours consommateurs des pays ciblés restent à valider.
+
+Les modifications anciennes du checkout `feature/marche-netlify` n'ont pas été écrasées. La recette est isolée dans `feature/recette-internationale`, puis intégrée par avance rapide à la branche de production `feature/profils`.
+
 État au **3 novembre 2026 (America/Toronto)**. Revérifier l’état distant avant toute action.
 
 ## Demande du propriétaire (2 novembre 2026)

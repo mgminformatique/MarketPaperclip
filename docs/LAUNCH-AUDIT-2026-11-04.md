@@ -7,11 +7,13 @@ Le site est accessible et l'agent **Paperclip Test 1.0.0** est publié à **1 $ 
 | Point | Résultat |
 | --- | --- |
 | Production | Netlify, site `4911687f-987b-4363-9982-50078b56f9ef`; source de départ `e1c9cfe`, branche de travail `feature/recette-internationale` |
+| Corrections déployées | Commit `d665d38`, déploiement `6aebb6a3a93714f201f59d7b`, état `ready`, 4 novembre 2026 à 22 h 50 UTC; une fonction serveur |
 | Comptes | Supabase actif; compte MGM confirmé, identité Google reliée; Google et courriel activés |
 | Connexion | Redirection du site vers Supabase puis Google vérifiée; contrôles du module client compilé FR/EN réussis. Une authentification interactive complète n'a pas été effectuée dans cette session |
 | Domaine | DNS public A `75.2.60.5`, www vers Netlify, HTTPS et redirection www fonctionnels depuis le poste. Le propriétaire a signalé un problème d'accès au domaine puis confirmé que l'adresse Netlify s'affiche. La cause côté appareil/réseau reste à identifier |
 | Contrôles publics | 50 contrôles réussis : pages FR/EN, fiche, en-têtes, pages privées non indexables, vraie 404, commandes refusées sans session, webhook non signé refusé |
 | Tests applicatifs | TypeScript et 103 tests réussis; build Netlify réussi |
+| Dépendances de production | `npm audit --omit=dev` : aucune vulnérabilité connue signalée |
 | Paiements | Portes de lancement ouvertes et commission configurée à 15 %. Ces indicateurs ne prouvent pas une transaction |
 | Vendeurs | Aucun compte Connect relié lors du contrôle initial |
 | Commandes et événements Stripe | Aucun lors du contrôle initial; aucune commande n'a été marquée payée artificiellement |
