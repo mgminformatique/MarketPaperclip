@@ -130,6 +130,7 @@ export type Configuration = {
   payments: boolean;
   demo: boolean;
   github: boolean;
+  githubDelivery?: boolean;
   google?: boolean;
   // Free acquisitions are open (launch gate), independently of Stripe.
   launched?: boolean;

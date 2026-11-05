@@ -54,6 +54,7 @@ import {
   usePricesVisible,
 } from "./market-ui";
 import type { Configuration, Session } from "./marketplace";
+import { GitHubPackagePicker, type GitHubSelection } from "./github-package-picker";
 import {
   ListingsDesk,
   MyOffers,
@@ -635,6 +636,9 @@ export function ProductEditor({
   const [coverPreview, setCoverPreview] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [existingFile, setExistingFile] = useState("");
+  const [deliveryMode, setDeliveryMode] = useState(config.githubDelivery ? "github_release" : "supabase");
+  const [existingProvider, setExistingProvider] = useState("");
+  const [githubSelection, setGithubSelection] = useState<GitHubSelection | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(id !== "new");
   const [error, setError] = useState("");
@@ -691,6 +695,10 @@ export function ProductEditor({
           ? p.product_files[0]
           : p.product_files;
         setExistingFile(f?.original_name || "");
+        if (f) {
+          setExistingProvider(f.source_provider || "supabase");
+          setDeliveryMode(f.source_provider || "supabase");
+        }
         setNote(p.status === "rejected" ? p.moderation_note || "" : "");
       })
       .catch((e) => setError(e.message))
@@ -737,6 +745,9 @@ export function ProductEditor({
     setBusy(true);
     try {
       let pid = productId;
+      if (publish && deliveryMode !== existingProvider &&
+        !(deliveryMode === "github_release" ? githubSelection : file))
+        throw new Error("Choisissez le fichier correspondant au mode de livraison.");
       const b = payload();
       if (!pid) {
         const d = await api("products", { ...b, status: "draft" });
@@ -750,10 +761,17 @@ export function ProductEditor({
         setCoverPreview(img.url);
         setCoverFile(null);
       }
-      if (file) {
+      if (deliveryMode === "supabase" && file) {
         await uploadPackage(pid, file);
         setExistingFile(file.name);
+        setExistingProvider("supabase");
         setFile(null);
+      }
+      if (deliveryMode === "github_release" && githubSelection) {
+        const attached = await api("products/" + pid + "/file/github", githubSelection);
+        setExistingFile(attached.name);
+        setExistingProvider("github_release");
+        setGithubSelection(null);
       }
       if (publish) {
         await api("products/" + pid, { ...b, status: "pending" }, "PATCH");
@@ -1018,7 +1036,20 @@ export function ProductEditor({
                       "Un package complet, une installation compréhensible et des permissions explicites.",
                     )}
                   </p>
-                  <div className="upload-zone">
+                  {(config.githubDelivery || existingProvider === "github_release") && session.user && <label>
+                    {t("Livraison du package")}
+                    <select value={deliveryMode} disabled={busy} onChange={(e) => { setDeliveryMode(e.target.value); setDirty(true); }}>
+                      <option value="github_release" disabled={!config.githubDelivery}>{t("GitHub Release — dépôt du vendeur")}</option>
+                      <option value="supabase">{t("Fichier hébergé sur le marketplace")}</option>
+                    </select>
+                  </label>}
+                  {deliveryMode === "github_release" ? <>
+                    {existingProvider === "github_release" && existingFile && <p>{t("Archive enregistrée : ")}{existingFile}</p>}
+                    {config.githubDelivery && session.user ? <GitHubPackagePicker disabled={busy} selection={githubSelection}
+                      beforeConnect={() => localStorage.setItem("mp-draft-" + session.user!.id, JSON.stringify(payload()))}
+                      onSelect={(value, version) => { setGithubSelection(value); setDirty(true); if (version) set("version", version); }} />
+                      : <Notice>{t("La livraison GitHub n’est pas encore configurée.")}</Notice>}
+                  </> : <div className="upload-zone">
                     <Upload size={31} />
                     <h3>
                       {t(
@@ -1056,7 +1087,7 @@ export function ProductEditor({
                         </small>
                       ),
                     )}
-                  </div>
+                  </div>}
                   <div className="form-stack">
                     <label>
                       {t("Version du package")}

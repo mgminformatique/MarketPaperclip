@@ -627,6 +627,7 @@ test("Free agents need the launch gate only: no Stripe key and no fee configurat
 test("Listing controls validate input and map database refusals", async () => {
   const sent: any[] = [];
   network((call) => {
+    if (call.url.pathname === "/rest/v1/product_files") return Response.json([]);
     if (call.url.pathname === "/rest/v1/products")
       return Response.json([{ id: productId, seller_id: buyer, status: "draft", version: "1.0.0" }]);
     if (call.url.pathname === "/rest/v1/rpc/market_set_price") {

@@ -9,6 +9,8 @@ const required = [
   "PLATFORM_FEE_BPS",
 ];
 let failed = false;
+if (process.env.GITHUB_DELIVERY_ENABLED === "true")
+  required.push("GITHUB_APP_ID", "GITHUB_APP_SLUG", "GITHUB_APP_CLIENT_ID", "GITHUB_APP_CLIENT_SECRET", "GITHUB_APP_PRIVATE_KEY", "GITHUB_APP_WEBHOOK_SECRET");
 for (const name of required) {
   const present = !!process.env[name];
   console.log(`${present ? "OK" : "MISSING"} ${name}`);
@@ -51,7 +53,7 @@ console.log(
   `INFO prices ${process.env.SHOW_PRICES === "false" ? "hidden" : "shown"}; launch ${process.env.LAUNCH_READY === "true" ? "open (free acquisitions)" : "closed"}; payments ${process.env.PAYMENTS_ENABLED === "true" ? "enabled" : "disabled"}`,
 );
 console.log(
-  "REVIEW Apply all migrations (001-007), verify the Microsoft 365 email hook (docs/COURRIELS_MICROSOFT.md) and redirects, Stripe Connect/webhook, DNS and terms.",
+  "REVIEW Apply all migrations (001-009), verify the Microsoft 365 email hook (docs/COURRIELS_MICROSOFT.md) and redirects, Stripe Connect/webhook, DNS and terms. For GitHub delivery, follow docs/GITHUB-DELIVERY.md and complete the private-repository acceptance run.",
 );
 console.log(
   "REVIEW Verify browser desktop/mobile and complete a Stripe TEST purchase before enabling launch flags.",
