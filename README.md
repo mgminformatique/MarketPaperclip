@@ -42,6 +42,27 @@ git pull --ff-only
 
 Les variables de production restent configurées dans Netlify et Supabase. Pour travailler localement avec ces services, renseignez `.dev.vars` à partir de `.env.example` avec les accès du poste. Sans configuration, le site présente les fiches de démonstration.
 
+Pour associer ce dossier aux services existants depuis un nouveau poste, avec les CLI Netlify et Supabase installés :
+
+```bash
+netlify login
+netlify link --id 4911687f-987b-4363-9982-50078b56f9ef
+supabase login
+supabase link --project-ref ltommtumsvvqxdknpkfd
+```
+
+Ces commandes relient le dossier au site et à la base existants. Les connexions des CLI sont propres à chaque poste; saisissez les accès dans leurs invites sécurisées. L'association seule n'applique aucune migration et ne publie aucun déploiement.
+
+| Service | Association à reprendre |
+| --- | --- |
+| GitHub | `mgminformatique/MarketPaperclip`, branche `main` |
+| Netlify | `marketpaperclip`, site `4911687f-987b-4363-9982-50078b56f9ef` |
+| Supabase | Projet `ltommtumsvvqxdknpkfd` |
+| Stripe | Compte **MarketPaperClip**, `acct_1UXHVqCzSwrXhCYK` |
+| Domaine | `https://marketpaperclip.com` |
+
+Le compte vendeur de test et sa fiche existent dans Supabase et sont donc communs aux postes. Le dernier essai du 5 novembre renvoie toujours `stripe_connect_setup_required` : l'activation Connect de la plateforme reste à terminer dans Stripe. Les détails de reprise sont dans le [handoff](docs/HANDOFF-CLAUDE.md).
+
 L'archive publiée de l'agent de test est versionnée dans [packages/releases/paperclip-test-1.0.0.zip](packages/releases/paperclip-test-1.0.0.zip), avec son empreinte SHA-256 et ses sources dans `packages/paperclip-test/`.
 
 ## Installation
