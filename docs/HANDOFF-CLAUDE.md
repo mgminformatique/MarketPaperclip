@@ -1,5 +1,15 @@
 # MarketPaperclip — Handoff
 
+## Profils pour tous les membres et modèles depuis le profil — 5 novembre 2026
+
+Code **`705fe5f`** sur `main`, déploiement Netlify **`6aecc872dd926bc802287a73`**, état `ready`, publié à **18 h 18 UTC** sur https://marketpaperclip.com. Aucune migration nécessaire : les profils, photos, couvertures et publications utilisent les tables et droits de la migration 008 existante. Aucune fonction planifiée.
+
+La navigation et la photo du compte ouvrent **`/profile`**, profil personnel de tout membre connecté; le lien public reste `/creators/<nom>`. Photo et couverture modifiables, présentation, onglets Publications / Mes modèles / Photos, édition des détails sur place. **Créer un modèle** ouvre l'éditeur sur le profil : description, fichier, prix, licence, sauvegarde du brouillon et soumission sans redirection vers le studio. Les modèles approuvés peuvent être joints à une publication depuis Mes modèles. Les visiteurs voient seulement les modèles publiés; brouillons et commandes d'édition restent privés. Les formats restent ceux des agents et bundles du marketplace.
+
+Validation : TypeScript, **116 tests**, build Netlify, **56 contrôles publics** après déploiement. Le client compilé publié passe les parcours propriétaire FR/EN avec réponses locales : photo, couverture, détails, publication avec modèle, brouillon, transfert du fichier, soumission, bouton global et confirmation avant abandon. Visiteur et accès anonyme contrôlés sur le build local. Aucun compte, modèle, média ni paiement de test n'a été ajouté à la production par ces contrôles. L'accès au navigateur est indisponible; la vérification visuelle desktop/mobile reste distincte. Voir [PROFILS.md](PROFILS.md).
+
+Stripe Connect conserve son blocage décrit ci-dessous; cette évolution du profil ne l'active pas.
+
 ## Vendeur de test distinct — 5 novembre 2026
 
 À la demande du propriétaire, Paperclip Test est maintenant publié sous **Paperclip Test — MGM**, profil [paperclip-test](https://marketpaperclip.com/creators/paperclip-test), compte `3e76f7a7-04ad-4db3-9fd6-6d124fc1df7d`. Le compte de test de courriels existant, déjà confirmé, a été réutilisé plutôt que dupliqué. Son adresse est `info+marketpaperclip-test@mgminformatique.ca`. Sa connexion normale et `/api/me` ont été vérifiés; il n'est pas administrateur. Le mot de passe aléatoire est conservé uniquement dans le coffre du poste MGM, entrée `marketpaperclip-test-seller`; une récupération passe par la boîte du propriétaire. Aucun secret ni lien de session dans Git.
