@@ -71,6 +71,26 @@ for (const [name, config] of Object.entries(targets)) {
   );
 }
 
+// Opt-in, short-lived operator job. Scheduled functions have no public URL.
+// A normal packaging run omits it and removes it from the next deployment.
+if (process.env.MARKET_SELLER_SETUP_JOB === "true") {
+  const name = "marketpaperclip-seller-setup";
+  const target = path.join(functions, name);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  await mkdir(target, { recursive: true });
+  await cp(path.join(root, "scripts/ops/bootstrap-mgm-seller.mjs"), path.join(target, "bootstrap.mjs"));
+  await writeFile(path.join(target, `${name}.mjs`), `import { bootstrapSeller } from "./bootstrap.mjs";
+export default async function run() {
+  const result = await bootstrapSeller(process.env, { expiresAt: ${JSON.stringify(expiresAt)} });
+  console.log("seller_setup", JSON.stringify(result));
+  return new Response(null, { status: 204 });
+}
+export const config = { schedule: "* * * * *", generator: "marketpaperclip-operator-setup" };
+`);
+  await writeFile(path.join(target, "package.json"), JSON.stringify({ type: "module", private: true }));
+  console.log("Temporary seller setup job included; expires " + expiresAt);
+}
+
 console.log(
   "Netlify functions prepared: " + Object.keys(targets).join(", "),
 );

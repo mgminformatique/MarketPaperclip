@@ -1400,6 +1400,26 @@ export async function marketApi(req: Request, c: Config) {
         check(xe);
         order = null;
       }
+      // Refuse an unavailable seller before recording a new pending purchase.
+      const paymentClient = amount > 0 ? stripe(c) : null;
+      let sellerAccountId: string | undefined;
+      if (paymentClient && !order?.stripe_session_id) {
+        const { data: seller, error: se } = await db
+          .from("seller_accounts")
+          .select("*")
+          .eq("user_id", p.seller_id)
+          .maybeSingle();
+        check(se);
+        if (!seller)
+          throw new HttpError(409, "Ce vendeur doit activer ses paiements.");
+        const account = await paymentClient.accounts.retrieve(seller.stripe_account_id);
+        if (!account.charges_enabled || !account.payouts_enabled)
+          throw new HttpError(
+            409,
+            "Les paiements de ce vendeur sont temporairement indisponibles.",
+          );
+        sellerAccountId = seller.stripe_account_id;
+      }
       if (!order) {
         const { data, error } = await db
           .from("orders")
@@ -1430,7 +1450,7 @@ export async function marketApi(req: Request, c: Config) {
         order = data;
       }
       if (order.amount_cents === 0) return ctx.json({ url: "/library" });
-      const st = stripe(c);
+      const st = paymentClient!;
       if (order.stripe_session_id) {
         const session = await st.checkout.sessions.retrieve(
           order.stripe_session_id,
@@ -1450,20 +1470,8 @@ export async function marketApi(req: Request, c: Config) {
           "Cette session a expiré. Relancez votre achat.",
         );
       }
-      const { data: seller, error: se } = await db
-        .from("seller_accounts")
-        .select("*")
-        .eq("user_id", p.seller_id)
-        .maybeSingle();
-      check(se);
-      if (!seller)
-        throw new HttpError(409, "Ce vendeur doit activer ses paiements.");
-      const a = await st.accounts.retrieve(seller.stripe_account_id);
-      if (!a.charges_enabled || !a.payouts_enabled)
-        throw new HttpError(
-          409,
-          "Les paiements de ce vendeur sont temporairement indisponibles.",
-        );
+      if (!sellerAccountId)
+        throw new HttpError(503, "Les paiements ne sont pas encore ouverts.");
       const session = await st.checkout.sessions.create(
         {
           mode: "payment",
@@ -1489,7 +1497,7 @@ export async function marketApi(req: Request, c: Config) {
           ],
           payment_intent_data: {
             application_fee_amount: order.fee_cents,
-            transfer_data: { destination: seller.stripe_account_id },
+            transfer_data: { destination: sellerAccountId },
             metadata: { order_id: order.id, buyer_id: u.id },
           },
           billing_address_collection: "required",

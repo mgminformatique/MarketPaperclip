@@ -330,6 +330,7 @@ function checkoutNetwork(opts: {
   offer?: Record<string, unknown> | null;
   existing?: Record<string, unknown> | null;
   price?: number;
+  sellerState?: "missing" | "restricted";
 }) {
   const state = {
     inserted: null as any,
@@ -374,13 +375,13 @@ function checkoutNetwork(opts: {
       }
     }
     if (p === "/rest/v1/seller_accounts")
-      return Response.json([{ stripe_account_id: "acct_seller" }]);
+      return Response.json(opts.sellerState === "missing" ? [] : [{ stripe_account_id: "acct_seller" }]);
     if (p === "/v1/accounts/acct_seller")
       return Response.json({
         object: "account",
         id: "acct_seller",
-        charges_enabled: true,
-        payouts_enabled: true,
+        charges_enabled: opts.sellerState !== "restricted",
+        payouts_enabled: opts.sellerState !== "restricted",
       });
     if (p === "/v1/checkout/sessions/cs_old")
       return Response.json({
@@ -405,6 +406,19 @@ function checkoutNetwork(opts: {
   });
   return { state, calls };
 }
+
+test("Unavailable sellers never create pending orders or Stripe Checkout sessions", async () => {
+  for (const sellerState of ["missing", "restricted"] as const) {
+    const { state } = checkoutNetwork({ sellerState });
+    const response = await marketApi(
+      request("checkout", "POST", { product_id: productId, license_accepted: true }, { cookie: sessionCookie() }),
+      launched,
+    );
+    assert.equal(response.status, 409);
+    assert.equal(state.inserted, null);
+    assert.equal(state.stripeBody, null);
+  }
+});
 
 test("Checkout keeps the chosen language and adds tax to the CAD price", async () => {
   for (const locale of ["en", "fr"]) {
