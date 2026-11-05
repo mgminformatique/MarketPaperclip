@@ -34,6 +34,7 @@ before(async () => {
     "006_product_covers.sql",
     "007_market_exchange.sql",
     "008_profile_posts.sql",
+    "009_github_delivery.sql",
   ])
     await db.exec(
       await readFile(
@@ -439,4 +440,49 @@ test("Profile pictures and posts are public to read and written only by the serv
   assert.equal(bucket.public, true);
   assert.equal(Number(bucket.file_size_limit), 3145728);
   assert.ok(!bucket.allowed_mime_types.includes("image/svg+xml"));
+});
+
+test("GitHub references are private and orders preserve an immutable, validated release snapshot", async () => {
+  for (const table of ["github_connections", "github_oauth_states"])
+    await assert.rejects(() => asUser(seller, `select * from ${table}`), /permission denied/);
+  await assert.rejects(() => asUser(buyer, "select github_source from orders"), /permission denied/);
+  const githubProduct = (await query(`insert into products(seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,license,requirements,setup)
+    select seller_id,'github-product',title,tagline,description,category,kind,engine,'1.2.0',price_cents,license,requirements,setup from products where id=$1 returning id`, [product])).rows[0].id;
+  const source = { installation_id: 123, repository_id: 456, release_id: 789, asset_id: 1001,
+    owner: "seller", repo: "distribution", tag: "v1.2.0", commit_sha: "c".repeat(40),
+    asset_name: "agent-1.2.0.zip", size_bytes: 104857600, sha256: "a".repeat(64), immutable: true };
+  const attach = (s = source, version = "1.2.0") => query("select market_attach_github_file($1,$2,$3,$4)", [githubProduct, seller, version, s]);
+  await assert.rejects(() => attach(), /not authorized/);
+  await query("insert into github_connections(seller_id,installation_id,account_login,repositories) values($1,123,'seller',$2)", [seller, [{ id: 456 }]]);
+  await assert.rejects(() => attach({ ...source, sha256: "forged" }), /Invalid source/);
+  await assert.rejects(() => attach({ ...source, token: "must-not-be-stored" }), /Invalid source/);
+  await attach();
+  const f = (await query("select * from product_files where product_id=$1", [githubProduct])).rows[0];
+  assert.equal(f.storage_path, null);
+  assert.equal(f.size_bytes, 104857600); // GitHub packages are not subject to the legacy 20 MiB storage limit.
+  assert.equal(f.source_provider, "github_release");
+  await query("update products set status='published',approved_version=version where id=$1", [githubProduct]);
+  const insertOrder = (buyerId, snapshot = source) => query(`insert into orders(buyer_id,seller_id,product_id,product_title,product_version,license,storage_path,file_sha256,amount_cents,fee_cents,source_provider,github_source,status)
+    values($1,$2,$3,'GitHub agent','1.2.0','MIT',null,$4,0,0,'github_release',$5,'paid') returning id`, [buyerId, seller, githubProduct, snapshot.sha256, snapshot]);
+  const githubOrder = (await insertOrder(buyer)).rows[0].id;
+  await assert.rejects(() => query("update orders set github_source=$2 where id=$1", [githubOrder, { ...source, asset_id: 1002 }]), /Immutable delivery/);
+  await assert.rejects(() => query("update orders set file_sha256=$2 where id=$1", [githubOrder, "b".repeat(64)]), /Immutable delivery/);
+  await assert.rejects(() => insertOrder(stranger, { ...source, asset_id: 1002 }), /source changed/);
+  await query("update products set status='draft',version='2.0.0' where id=$1", [githubProduct]);
+  const newer = { ...source, release_id: 790, asset_id: 1002, tag: "v2.0.0", sha256: "b".repeat(64) };
+  await attach(newer, "2.0.0");
+  assert.deepEqual((await query("select github_source from orders where id=$1", [githubOrder])).rows[0].github_source, source);
+  await query("update products set status='published',approved_version=version where id=$1", [githubProduct]);
+  // A failed old download must not suspend the seller's newer listing.
+  await query("select market_github_source_health($1,$2,false)", [githubProduct, source]);
+  assert.equal((await query("select status from products where id=$1", [githubProduct])).rows[0].status, "published");
+  await query("select market_github_invalidate(123,456,790,null)");
+  assert.equal((await query("select status from products where id=$1", [githubProduct])).rows[0].status, "archived");
+  await assert.rejects(() => query("select market_set_listing($1,$2,'resume')", [githubProduct, seller]), /Source unavailable/);
+  await query("select market_github_source_health($1,$2,true)", [githubProduct, newer]);
+  await query("select market_set_listing($1,$2,'resume')", [githubProduct, seller]);
+  await query("update products set status='draft' where id=$1", [githubProduct]);
+  await query("select market_attach_file($1,$2,'legacy/replacement.zip','legacy.zip',10,$3,'2.0.0')", [githubProduct, seller, "d".repeat(64)]);
+  const legacy = (await query("select source_provider,github_source from product_files where product_id=$1", [githubProduct])).rows[0];
+  assert.deepEqual(legacy, { source_provider: "supabase", github_source: null });
 });

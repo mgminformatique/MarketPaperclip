@@ -18,6 +18,13 @@ export type Config = {
   PLATFORM_FEE_BPS?: string;
   PAYMENTS_ENABLED?: string;
   GITHUB_AUTH_ENABLED?: string;
+  GITHUB_DELIVERY_ENABLED?: string;
+  GITHUB_APP_ID?: string;
+  GITHUB_APP_SLUG?: string;
+  GITHUB_APP_PRIVATE_KEY?: string;
+  GITHUB_APP_CLIENT_ID?: string;
+  GITHUB_APP_CLIENT_SECRET?: string;
+  GITHUB_APP_WEBHOOK_SECRET?: string;
   GOOGLE_AUTH_ENABLED?: string;
   STRIPE_TAX_ENABLED?: string;
   LAUNCH_READY?: string;
@@ -119,7 +126,7 @@ export function context(request: Request, c: Config) {
     cookies.forEach((v) => h.append("set-cookie", v));
     return new Response(null, { status: 303, headers: h });
   };
-  return { client, json, redirect };
+  return { client, json, redirect, cookies };
 }
 export async function user(client: SupabaseClient | null) {
   if (!client)

@@ -16,6 +16,7 @@ Le site est en production sur **https://marketpaperclip.com**, avec Supabase, la
 - Inscription, confirmation du courriel, connexion, récupération et changement du mot de passe via Supabase Auth. Connexion Google et OAuth GitHub optionnel.
 - Onboarding vendeur Stripe Connect, Checkout, commission serveur configurable et tableau des ventes.
 - Commandes privées, fichier et version figés lors de l’achat, liens de téléchargement de 60 secondes.
+- Livraison optionnelle depuis les GitHub Releases des vendeurs, dépôts privés compris : sélection de l’archive, référence et empreinte figées, accès contrôlé sans compte GitHub acheteur ni stockage permanent des ZIP. Configuration et recette : [docs/GITHUB-DELIVERY.md](docs/GITHUB-DELIVERY.md).
 - Modération administrative, demandes d’assistance et remboursements avec inversion du transfert et de la commission.
 - Réconciliation des paiements, remboursements et litiges par webhook signé, avec journal transactionnel et déduplication.
 
@@ -81,7 +82,7 @@ Le projet utilise React 19, TypeScript et Vinext/Vite. Le build Worker s’exéc
 
 ## Mise en service
 
-Le projet Supabase désigné est `ltommtumsvvqxdknpkfd`. Le déploiement des huit migrations et de la configuration Auth est préparé dans le workflow manuel **Deploy Supabase**, limité à `main`. Suivre [docs/SUPABASE-SETUP.md](docs/SUPABASE-SETUP.md) pour ajouter les accès sécurisés, exécuter le workflow et relier les variables serveur du site. Ce workflow ne déploie pas automatiquement le site ni ses secrets.
+Le projet Supabase désigné est `ltommtumsvvqxdknpkfd`. Le déploiement des neuf migrations et de la configuration Auth est préparé dans le workflow manuel **Deploy Supabase**, limité à `main`. Suivre [docs/SUPABASE-SETUP.md](docs/SUPABASE-SETUP.md) pour ajouter les accès sécurisés, exécuter le workflow et relier les variables serveur du site. Ce workflow ne déploie pas automatiquement le site ni ses secrets.
 
 Lisez [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), puis [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md). Les scripts SQL à appliquer dans l’ordre sont dans `supabase/migrations/`.
 
@@ -93,7 +94,7 @@ La mise en ligne Netlify + GoDaddy + Stripe est décrite pas à pas dans [docs/N
 app/                     Pages et point d’entrée API (market.css : styles du marché)
 components/              Catalogue, studio, acquisitions, documentation, marché (market-floor, market-desk)
 lib/market/              Contrats, validation, Supabase, Stripe et orchestration API
-supabase/migrations/     Tables, RLS, permissions et procédures transactionnelles (001–008)
+supabase/migrations/     Tables, RLS, permissions et procédures transactionnelles (001–009)
 worker/                  Adaptateur Cloudflare et en-têtes de sécurité
 public/art/              Illustrations originales optimisées en WebP
 scripts/preflight.mjs    Contrôle des noms de variables requis, sans révéler les valeurs

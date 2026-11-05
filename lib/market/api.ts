@@ -28,6 +28,7 @@ import {
   type Config,
 } from "./server";
 import { handleWebhook } from "./webhook";
+import { githubRoutes, githubWebhook, attachGitHubFile, checkGitHubAvailability, deliverGitHub } from "./github-api";
 import { emptyOverview, marketRange } from "./market";
 const publicFields =
   "id,seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,currency,license,tags,requirements,setup,agent_count,status,created_at,listed_at,cover_url,profiles!products_seller_id_fkey(display_name,username,bio,avatar_url)";
@@ -226,6 +227,8 @@ export async function marketApi(req: Request, c: Config) {
   try {
     if (route === "webhooks/stripe" && req.method === "POST")
       return await handleWebhook(req, c);
+    if (route === "webhooks/github" && req.method === "POST")
+      return await githubWebhook(req, c, admin(c));
     originGuard(req);
     if (route === "config" && req.method === "GET")
       return ctx.json(publicConfig(c));
@@ -708,6 +711,8 @@ export async function marketApi(req: Request, c: Config) {
     const u = await user(ctx.client);
     const db = admin(c);
     await rateLimit(db, req, "user:" + u.id, 120, 60);
+    const githubResponse = await githubRoutes(req, c, db, ctx, u.id);
+    if (githubResponse) return githubResponse;
     if (route === "profile" && req.method === "PATCH") {
       const b = profileInput.parse(await parseBody(req));
       const { error } = await ctx
@@ -874,7 +879,7 @@ export async function marketApi(req: Request, c: Config) {
       ] = await Promise.all([
         db
           .from("products")
-          .select("*,product_files(original_name,size_bytes,version,sha256)")
+          .select("*,product_files(original_name,size_bytes,version,sha256,source_provider,source_available)")
           .eq("seller_id", u.id)
           .order("created_at", { ascending: false })
           .range(page * 12, page * 12 + 11),
@@ -898,7 +903,7 @@ export async function marketApi(req: Request, c: Config) {
       const id = uuid.parse(path[1]);
       const { data: product, error } = await db
         .from("products")
-        .select("*,product_files(original_name,size_bytes,version,sha256)")
+        .select("*,product_files(original_name,size_bytes,version,sha256,source_provider,source_available)")
         .eq("id", id)
         .eq("seller_id", u.id)
         .maybeSingle();
@@ -950,7 +955,7 @@ export async function marketApi(req: Request, c: Config) {
         if (b.status === "pending") {
           const { data: f } = await db
             .from("product_files")
-            .select("version")
+            .select("*")
             .eq("product_id", id)
             .maybeSingle();
           if (!f || f.version !== b.version)
@@ -958,6 +963,7 @@ export async function marketApi(req: Request, c: Config) {
               400,
               "Ajoutez le fichier correspondant à cette version avant la soumission.",
             );
+          if (f.source_provider === "github_release") await checkGitHubAvailability(db, c, id, f.github_source);
         }
         const { error } = await db.rpc("market_save_product", {
           p_id: id,
@@ -1001,6 +1007,11 @@ export async function marketApi(req: Request, c: Config) {
           .object({ action: z.enum(["pause", "resume"]) })
           .strict()
           .parse(await parseBody(req));
+        if (b.action === "resume") {
+          const { data: file, error: fe } = await db.from("product_files").select("*").eq("product_id", id).maybeSingle();
+          check(fe);
+          if (file?.source_provider === "github_release") await checkGitHubAvailability(db, c, id, file.github_source);
+        }
         const { error } = await db.rpc("market_set_listing", {
           p_id: id,
           p_seller: u.id,
@@ -1018,6 +1029,8 @@ export async function marketApi(req: Request, c: Config) {
         ]);
         return ctx.json({ ok: true, status: b.action === "pause" ? "archived" : "published" });
       }
+      if (path.length === 4 && path[2] === "file" && path[3] === "github" && req.method === "POST")
+        return ctx.json(await attachGitHubFile(req, c, db, u.id, p));
       // Packages go straight from the browser to private Storage with a
       // one-time signed URL, then the server verifies them before attaching.
       if (
@@ -1409,6 +1422,13 @@ export async function marketApi(req: Request, c: Config) {
         check(xe);
         order = null;
       }
+      // Verify the snapshot actually used: an unchanged pending order, or the
+      // current product file when a stale-price Checkout has been replaced.
+      const delivery = order?.source_provider === "github_release"
+        ? order.github_source
+        : f.github_source;
+      if (order?.source_provider === "github_release" || (!order && f.source_provider === "github_release"))
+        await checkGitHubAvailability(db, c, p.id, delivery);
       // Refuse an unavailable seller before recording a new pending purchase.
       const paymentClient = amount > 0 ? stripe(c) : null;
       let sellerAccountId: string | undefined;
@@ -1441,6 +1461,8 @@ export async function marketApi(req: Request, c: Config) {
             license: p.license,
             storage_path: f.storage_path,
             file_sha256: f.sha256,
+            source_provider: f.source_provider || "supabase",
+            github_source: f.github_source || null,
             amount_cents: amount,
             fee_cents: fee,
             currency: "cad",
@@ -1544,7 +1566,8 @@ export async function marketApi(req: Request, c: Config) {
     if (
       path[0] === "orders" &&
       path[2] === "download" &&
-      req.method === "POST"
+      path.length === 3 &&
+      ["POST", "GET"].includes(req.method)
     ) {
       const id = uuid.parse(path[1]);
       const { data: o, error } = await db
@@ -1559,10 +1582,15 @@ export async function marketApi(req: Request, c: Config) {
           403,
           "Le téléchargement nécessite un achat confirmé et actif.",
         );
+      if (o.source_provider === "github_release") {
+        if (req.method === "POST") return ctx.json({ url: `/api/orders/${id}/download`, sha256: o.file_sha256 });
+        return await deliverGitHub(db, c, o.product_id, o.github_source, ctx.cookies);
+      }
       const { data, error: de } = await db.storage
         .from("agent-packages")
         .createSignedUrl(o.storage_path, 60, { download: true });
       check(de);
+      if (req.method === "GET") return ctx.redirect(data!.signedUrl);
       return ctx.json({ url: data!.signedUrl, sha256: o.file_sha256 });
     }
     if (route === "reviews" && req.method === "POST") {
@@ -1748,6 +1776,11 @@ export async function marketApi(req: Request, c: Config) {
             expected_updated_at: z.string().datetime({ offset: true }),
           })
           .parse(await parseBody(req));
+        if (b.status === "published") {
+          const { data: file, error: fe } = await db.from("product_files").select("*").eq("product_id", b.product_id).maybeSingle();
+          check(fe);
+          if (file?.source_provider === "github_release") await checkGitHubAvailability(db, c, b.product_id, file.github_source);
+        }
         const { error } = await db.rpc("market_moderate_product", {
           p_id: b.product_id,
           p_admin: u.id,
@@ -1762,18 +1795,23 @@ export async function marketApi(req: Request, c: Config) {
           );
         return ctx.json({ ok: true });
       }
-      if (route === "admin/file" && req.method === "POST") {
-        const b = z.object({ product_id: uuid }).parse(await parseBody(req));
+      if (route === "admin/file" && ["POST", "GET"].includes(req.method)) {
+        const b = z.object({ product_id: uuid }).parse(req.method === "GET" ? { product_id: url.searchParams.get("product_id") } : await parseBody(req));
         const { data: f } = await db
           .from("product_files")
-          .select("storage_path")
+          .select("*")
           .eq("product_id", b.product_id)
           .single();
         if (!f) throw new HttpError(404, "Fichier introuvable.");
+        if (f.source_provider === "github_release") {
+          if (req.method === "POST") return ctx.json({ url: `/api/admin/file?product_id=${b.product_id}`, sha256: f.sha256 });
+          return await deliverGitHub(db, c, b.product_id, f.github_source, ctx.cookies);
+        }
         const { data, error } = await db.storage
           .from("agent-packages")
           .createSignedUrl(f.storage_path, 60, { download: true });
         check(error);
+        if (req.method === "GET") return ctx.redirect(data!.signedUrl);
         return ctx.json({ url: data!.signedUrl });
       }
       if (route === "admin/resolve" && req.method === "POST") {

@@ -54,6 +54,7 @@ import {
   usePricesVisible,
 } from "./market-ui";
 import type { Configuration, Session } from "./marketplace";
+import { GitHubPackagePicker, type GitHubSelection } from "./github-package-picker";
 import {
   ListingsDesk,
   MyOffers,
@@ -635,6 +636,9 @@ export function ProductEditor({
   const [coverPreview, setCoverPreview] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [existingFile, setExistingFile] = useState("");
+  const [deliveryMode, setDeliveryMode] = useState(config.githubDelivery ? "github_release" : "supabase");
+  const [existingProvider, setExistingProvider] = useState("");
+  const [githubSelection, setGithubSelection] = useState<GitHubSelection | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(id !== "new");
   const [error, setError] = useState("");
@@ -644,6 +648,7 @@ export function ProductEditor({
   const [dirty, setDirty] = useState(false);
   // The moderator's note when a submission was sent back for changes.
   const [note, setNote] = useState("");
+  const githubDraftKey = "mp-github-draft-" + (session.user?.id || "visitor") + "-" + (productId || "new");
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   const set = (key: string, v: any) => {
@@ -653,19 +658,23 @@ export function ProductEditor({
   useEffect(() => {
     if (id === "new") {
       try {
+        const githubDraft = JSON.parse(localStorage.getItem(githubDraftKey) || "null");
         const draft = JSON.parse(
           localStorage.getItem("mp-draft-" + (session.user?.id || "visitor")) ||
             "null",
         );
-        if (draft) {
-          setForm({ ...emptyProduct, ...draft });
-          setTags((draft.tags || []).join(", "));
+        const restored = githubDraft?.form || draft;
+        if (restored) {
+          setForm({ ...emptyProduct, ...restored, status: "draft" });
+          setTags((restored.tags || []).join(", "));
           setPrice(
-            typeof draft.price_cents === "number"
-              ? String(draft.price_cents / 100)
+            typeof restored.price_cents === "number"
+              ? String(restored.price_cents / 100)
               : "",
           );
           setPriceEdited(true);
+          if (githubDraft?.deliveryMode) setDeliveryMode(githubDraft.deliveryMode);
+          if (githubDraft) setDirty(true);
         }
       } catch {}
       return;
@@ -681,16 +690,28 @@ export function ProductEditor({
         if (!p) throw new Error("Produit introuvable dans votre studio.");
         const clean = { ...emptyProduct };
         for (const k of Object.keys(clean)) (clean as any)[k] = p[k];
+        let githubDraft: { form?: typeof clean; deliveryMode?: string } | null = null;
+        try { githubDraft = JSON.parse(localStorage.getItem(githubDraftKey) || "null"); } catch {}
+        if (githubDraft?.form)
+          for (const k of Object.keys(clean)) (clean as any)[k] = (githubDraft.form as any)[k] ?? (clean as any)[k];
         clean.status = "draft";
         setForm(clean);
         setCoverPreview(p.cover_url || "");
-        setTags(p.tags.join(", "));
-        setPrice(String(p.price_cents / 100));
+        setTags(clean.tags.join(", "));
+        setPrice(typeof clean.price_cents === "number" ? String(clean.price_cents / 100) : "");
         setPriceEdited(true);
         const f = Array.isArray(p.product_files)
           ? p.product_files[0]
           : p.product_files;
         setExistingFile(f?.original_name || "");
+        if (f) {
+          setExistingProvider(f.source_provider || "supabase");
+          setDeliveryMode(f.source_provider || "supabase");
+        }
+        if (githubDraft) {
+          setDirty(true);
+          if (githubDraft.deliveryMode) setDeliveryMode(githubDraft.deliveryMode);
+        }
         setNote(p.status === "rejected" ? p.moderation_note || "" : "");
       })
       .catch((e) => setError(e.message))
@@ -737,6 +758,9 @@ export function ProductEditor({
     setBusy(true);
     try {
       let pid = productId;
+      if (publish && deliveryMode !== existingProvider &&
+        !(deliveryMode === "github_release" ? githubSelection : file))
+        throw new Error("Choisissez le fichier correspondant au mode de livraison.");
       const b = payload();
       if (!pid) {
         const d = await api("products", { ...b, status: "draft" });
@@ -750,10 +774,17 @@ export function ProductEditor({
         setCoverPreview(img.url);
         setCoverFile(null);
       }
-      if (file) {
+      if (deliveryMode === "supabase" && file) {
         await uploadPackage(pid, file);
         setExistingFile(file.name);
+        setExistingProvider("supabase");
         setFile(null);
+      }
+      if (deliveryMode === "github_release" && githubSelection) {
+        const attached = await api("products/" + pid + "/file/github", githubSelection);
+        setExistingFile(attached.name);
+        setExistingProvider("github_release");
+        setGithubSelection(null);
       }
       if (publish) {
         await api("products/" + pid, { ...b, status: "pending" }, "PATCH");
@@ -761,6 +792,8 @@ export function ProductEditor({
       } else notify("Brouillon enregistré.");
       setDirty(false);
       localStorage.removeItem("mp-draft-" + (session.user?.id || "visitor"));
+      localStorage.removeItem(githubDraftKey);
+      localStorage.removeItem("mp-github-draft-" + session.user!.id + "-new");
       onSaved?.({ id: pid, status: publish ? "pending" : "draft" });
       if (!embedded) {
         if (publish) router.push("/studio");
@@ -1018,7 +1051,21 @@ export function ProductEditor({
                       "Un package complet, une installation compréhensible et des permissions explicites.",
                     )}
                   </p>
-                  <div className="upload-zone">
+                  {(config.githubDelivery || existingProvider === "github_release") && session.user && <label>
+                    {t("Livraison du package")}
+                    <select value={deliveryMode} disabled={busy} onChange={(e) => { setDeliveryMode(e.target.value); setDirty(true); }}>
+                      <option value="github_release" disabled={!config.githubDelivery}>{t("GitHub Release — dépôt du vendeur")}</option>
+                      <option value="supabase">{t("Fichier hébergé sur le marketplace")}</option>
+                    </select>
+                  </label>}
+                  {deliveryMode === "github_release" ? <>
+                    {existingProvider === "github_release" && existingFile && <p>{t("Archive enregistrée : ")}{existingFile}</p>}
+                    {config.githubDelivery && session.user ? <GitHubPackagePicker disabled={busy} selection={githubSelection}
+                      returnPath={"/studio/" + (productId || "new") + "?lang=" + locale}
+                      beforeConnect={() => { localStorage.setItem(githubDraftKey, JSON.stringify({ form: payload(), deliveryMode })); setDirty(false); }}
+                      onSelect={(value, version) => { setGithubSelection(value); setDirty(true); if (version) set("version", version); }} />
+                      : <Notice>{t("La livraison GitHub n’est pas encore configurée.")}</Notice>}
+                  </> : <div className="upload-zone">
                     <Upload size={31} />
                     <h3>
                       {t(
@@ -1056,7 +1103,7 @@ export function ProductEditor({
                         </small>
                       ),
                     )}
-                  </div>
+                  </div>}
                   <div className="form-stack">
                     <label>
                       {t("Version du package")}
