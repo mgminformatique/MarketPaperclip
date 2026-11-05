@@ -4,7 +4,7 @@ Marketplace indépendant d’agents et de bundles d’agents, conçu pour MGM In
 
 ## État livré
 
-Le site est en production sur **https://marketpaperclip.com**, avec Supabase, la connexion Google et l'agent **Paperclip Test** publié à 1 $ CA. La vente réelle reste à valider : Stripe a confirmé que l'activation de Connect sur la plateforme doit être terminée par le titulaire. Voir [le diagnostic et les actions restantes](docs/HANDOFF-CLAUDE.md). Sans configuration locale, le site présente quatre fiches explicitement marquées comme démonstration.
+Le site est en production sur **https://marketpaperclip.com**, avec Supabase, la connexion Google et l'agent [Paperclip Test](https://marketpaperclip.com/agents/paperclip-test-d4f9db51) publié à 1 $ CA sous un compte technique distinct du compte principal MGM. L'activation du vendeur Stripe et la recette de paiement restent à terminer. Les essais entre comptes MGM doivent utiliser Stripe Sandbox dans un environnement isolé. Voir [le diagnostic et les actions restantes](docs/HANDOFF-CLAUDE.md). Sans configuration locale, le site présente quatre fiches explicitement marquées comme démonstration.
 
 ### Fonctionnalités
 

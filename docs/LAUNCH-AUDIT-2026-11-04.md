@@ -2,6 +2,8 @@
 
 Le site est accessible et l'agent **Paperclip Test 1.0.0** est publié à **1 $ CA**. La vente réelle reste à effectuer : Stripe a refusé la création du vendeur MGM parce que **Connect n'est pas encore activé sur le compte de la plateforme**. Le lancement publicitaire payant reste en attente de cette vente et des vérifications propres aux pays ciblés.
 
+**Mise à jour du 5 novembre :** publication déplacée vers le compte confirmé **Paperclip Test — MGM**, distinct du compte principal et sans rôle administrateur. Nouvelle fiche ci-dessous; l'ancienne est archivée. L'essai entre ces deux comptes doit utiliser un environnement isolé et Stripe Sandbox : [les tests avec une vraie carte en mode réel sont interdits par Stripe](https://docs.stripe.com/testing). Aucune vente réelle n'a été exécutée.
+
 ## Vérification complémentaire et dernier déploiement
 
 Le 4 novembre 2026 à 19 h 13 HE (5 novembre à 00 h 13 UTC), un contrôle exécuté dans Netlify avec les accès serveur existants a vérifié le compte Stripe attendu et demandé la préparation du vendeur MGM. Stripe a répondu HTTP 400 `invalid_request_error` à `POST /v1/accounts`, avec le motif « inscription à Connect requise ». Aucun compte vendeur n'a été créé et aucun paiement n'a été exécuté.
@@ -34,15 +36,15 @@ L'action qui bloque la suite est l'[activation Connect dans Stripe](https://dash
 
 ## Agent publié
 
-[Paperclip Test](https://marketpaperclip.com/agents/paperclip-test-bdbbb8c3) — [adresse Netlify de secours](https://marketpaperclip.netlify.app/agents/paperclip-test-bdbbb8c3).
+[Paperclip Test](https://marketpaperclip.com/agents/paperclip-test-d4f9db51) — [adresse Netlify de secours](https://marketpaperclip.netlify.app/agents/paperclip-test-d4f9db51). Vendeur : [Paperclip Test — MGM](https://marketpaperclip.com/creators/paperclip-test). Ancienne fiche `paperclip-test-bdbbb8c3` archivée le 5 novembre.
 
 Agent minimal de test du chargement d'instructions, avec AGENTS.md, manifeste descriptif, guides anglais/français, exemples et licence MIT. Installation manuelle dans un dossier d'instructions Paperclip. Le package ne contient aucun exécutable, dépendance ou secret. Le runtime, les appels au modèle et une automatisation métier de production ne sont pas inclus.
 
-- Archive : `outputs/paperclip-test-1.0.0.zip`, 5 550 octets, six fichiers.
+- Archive versionnée : `packages/releases/paperclip-test-1.0.0.zip`, 5 550 octets, six fichiers.
 - SHA-256 : `4e5bda2a5a71dad7a3363e8f07ac6a2b60f54100ac76f097613ee49a1bd54b4a`.
 - Sources reproductibles : `packages/paperclip-test/` et `packages/paperclip-test.listing.json`.
 - Dépôt privé et lecture des octets stockés vérifiés, version figée et publication approuvée par la procédure transactionnelle de modération.
-- Publication opérateur au nom du compte MGM autorisée par le propriétaire. Elle ne constitue pas une recette du formulaire de publication dans le navigateur.
+- Republication du 5 novembre autorisée par le propriétaire : session réelle du compte technique, routes de brouillon, transfert et soumission vérifiées, puis procédure de modération. Elle ne constitue pas une recette du formulaire dans le navigateur.
 - L'exécution du modèle dans une installation Paperclip et le téléchargement par un acheteur après paiement restent à vérifier.
 
 ## Corrections pour les visiteurs internationaux
@@ -51,14 +53,14 @@ Les prix ordinaires et les statistiques affichent désormais explicitement **CAD
 
 Ces corrections n'activent pas Stripe Tax, ne créent aucune inscription fiscale et n'élargissent pas les pays des vendeurs.
 
-## Terminer la vente de 1 dollar
+## Terminer la recette puis ouvrir les ventes
 
-1. Terminer d'abord l'[activation Connect de la plateforme](https://dashboard.stripe.com/connect), puis, sur le compte vendeur MGM, ouvrir [le studio](https://marketpaperclip.netlify.app/studio) et **Configurer les paiements**. Le propriétaire confirme lui-même les informations et les accords demandés par Stripe. Les paiements **et** les versements doivent être actifs.
-2. Utiliser un autre compte acheteur confirmé : le créateur ne peut pas acheter son propre produit. Ouvrir la fiche Paperclip Test, accepter la licence et passer par le Checkout normal du site.
-3. Le plafond autorisé par le propriétaire est **1 $ CA au total**. Si le total affiché dépasse 1 $, arrêter avant de payer. La carte est saisie directement dans Stripe, jamais dans le chat ou un journal.
-4. Constater un vrai paiement du mode réel dans Stripe, une commande passée à `paid` par le webhook, le montant total et la commission de 15 cents. Vérifier aussi la destination Connect et l'état du transfert; la commission brute n'est pas un bénéfice après frais Stripe.
-5. Depuis les acquisitions du même acheteur, télécharger le ZIP et comparer son SHA-256 avec celui ci-dessus. Vérifier qu'un autre compte n'obtient pas le lien et qu'un retour Checkout sans webhook ne suffit pas à livrer le fichier.
-6. Installer manuellement le package dans Paperclip et vérifier les deux tâches d'exemple. Un éventuel remboursement est une opération distincte, à effectuer à la demande du propriétaire, puis à contrôler jusqu'à la révocation du téléchargement.
+1. Préparer un environnement isolé avec Stripe Sandbox et une base de test. Ne pas remplacer les clés de production par des clés de test sur le site public.
+2. Avec deux comptes distincts dans cet environnement, ouvrir la fiche, accepter la licence et payer avec une carte de test Stripe. Vérifier le prix de 100 cents CAD et la commission de 15 cents.
+3. Vérifier la confirmation par webhook, le transfert de test, le téléchargement et le SHA-256. Un autre compte ne doit pas obtenir le lien; le retour navigateur seul ne doit pas livrer le fichier. Tester le remboursement et la révocation dans cet environnement.
+4. Installer le package dans Paperclip et vérifier les deux tâches d'exemple.
+5. Pour les ventes réelles, terminer l'[activation Connect de la plateforme](https://dashboard.stripe.com/connect), puis celle du vendeur depuis [le studio](https://marketpaperclip.netlify.app/studio), avec ses informations exactes et les accords confirmés par le titulaire. Paiements et versements doivent être actifs.
+6. Une véritable acquisition par un client pourra ensuite valider le parcours réel. Le plafond précédemment autorisé de 1 $ CA n'autorise pas un autoachat de test contraire aux instructions Stripe. Aucun paiement n'a été fait.
 
 `npm run verify:sale` effectue les contrôles du statut, des montants et du téléchargement par les routes du même acheteur après paiement. Son entrée JSON arrive sur stdin : `cookie`, `orderId`, `expectedSha256`, et éventuellement `origin`, `amountCents`, `maxTotalCents`, `feeCents` (par défaut 100, 100 et 15). La session reste privée et ne doit pas être transmise dans le chat. Ce script n'achète rien; le tableau Stripe reste nécessaire pour prouver le mode réel et le transfert.
 
@@ -74,7 +76,7 @@ Un résultat public réussi ne signifie pas que la vente a été validée.
 
 | Sujet | Action attendue |
 | --- | --- |
-| Première vente | Réussir le parcours réel de 1 $ ci-dessus; conserver les preuves sans carte, cookie ou lien privé |
+| Paiement et livraison | Réussir la recette isolée Stripe Sandbox ci-dessus, activer le vendeur réel, puis contrôler les premières acquisitions véritables; aucune vente synthétique en production |
 | Catalogue | Publier des agents utiles pour le public visé, avec fichiers, installation et limites testés. Paperclip Test doit rester présenté comme un agent de test |
 | Pays vendeurs | Le serveur crée les comptes Connect au Canada (`country: CA`). Ne pas promettre l'inscription de vendeurs du monde entier avant d'ajouter et de valider d'autres pays |
 | Devise | Annoncer des prix en CAD. Aucun affichage USD/EUR ni règlement multidevise n'a été validé |

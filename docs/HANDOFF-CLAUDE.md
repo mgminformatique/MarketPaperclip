@@ -1,5 +1,13 @@
 # MarketPaperclip — Handoff
 
+## Vendeur de test distinct — 5 novembre 2026
+
+À la demande du propriétaire, Paperclip Test est maintenant publié sous **Paperclip Test — MGM**, profil [paperclip-test](https://marketpaperclip.com/creators/paperclip-test), compte `3e76f7a7-04ad-4db3-9fd6-6d124fc1df7d`. Le compte de test de courriels existant, déjà confirmé, a été réutilisé plutôt que dupliqué. Son adresse est `info+marketpaperclip-test@mgminformatique.ca`. Sa connexion normale et `/api/me` ont été vérifiés; il n'est pas administrateur. Le mot de passe aléatoire est conservé uniquement dans le coffre du poste MGM, entrée `marketpaperclip-test-seller`; une récupération passe par la boîte du propriétaire. Aucun secret ni lien de session dans Git.
+
+**Fiche active : [paperclip-test-d4f9db51](https://marketpaperclip.com/agents/paperclip-test-d4f9db51)**, produit `d4f9db51-312c-4660-936c-16cec15a880f`, 1 $ CA, MIT, version 1.0.0. Brouillon, transfert du ZIP et soumission effectués par les routes applicatives avec la session du compte de test; octets privés relus et SHA-256 identique à l'archive versionnée. Publication autorisée par la procédure de modération; audit `operator.test_seller.publish`. L'ancienne fiche `paperclip-test-bdbbb8c3`, détenue par le compte principal MGM, est archivée. Elle n'avait ni commande ni offre. Le compte principal est maintenant distinct du vendeur de la fiche active.
+
+Aucun compte Stripe vendeur n'a été créé et aucun paiement n'a été exécuté. **Correction du plan précédent : un essai entre les deux comptes MGM doit passer par un environnement isolé avec Stripe Sandbox**, sans vraie carte et sans commande de test dans les statistiques de production. [Stripe interdit les tests en mode réel avec de vrais moyens de paiement](https://docs.stripe.com/testing). Les mentions historiques d'un achat de test réel à 1 $ ci-dessous ne doivent plus être suivies. La première vente réelle désigne une véritable acquisition par un client, après activation du vendeur, et non un autoachat destiné à tester l'intégration.
+
 ## Consolidation sur `main` du 4 novembre 2026
 
 `main` devient la branche de référence pour reprendre le projet sur un autre poste. GitHub ne présentait aucune pull request ouverte lors de la revue : les travaux étaient sur trois branches. Elles sont toutes incluses dans l'historique de `main` : `feature/profils` (`fd6de45`), `feature/recette-internationale` (`b78aa91`) et `feature/marche-netlify` (`5322d0d`). Les branches sont conservées.

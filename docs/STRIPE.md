@@ -2,6 +2,12 @@
 
 Décision du propriétaire (3 novembre 2026) : produits **payants** dès le lancement, commission de **15 %** (`PLATFORM_FEE_BPS=1500`).
 
+## Mise à jour du 5 novembre 2026
+
+[Paperclip Test](https://marketpaperclip.com/agents/paperclip-test-d4f9db51) est publié à 1 $ CA par le compte technique **Paperclip Test — MGM**, distinct du compte principal. L'ancienne fiche MGM est archivée. Ce vendeur n'a pas encore de compte Connect relié; sa publication ne signifie pas que l'encaissement est prêt.
+
+La recette entre les comptes MGM doit utiliser **Stripe Sandbox dans un environnement isolé**, avec une carte de test. Elle ne doit pas créer de fausse vente en production. [Stripe interdit de tester en mode réel avec de vrais moyens de paiement](https://docs.stripe.com/testing). Les anciennes instructions de paiement réel de test sont remplacées par cette règle; une véritable vente reste un achat réel par un client.
+
 ## État (3 novembre 2026, 23 h 30, heure de l'Est)
 
 **Contrôle réel du 4 novembre 2026, 19 h 13 HE : Stripe Connect reste à activer sur la plateforme.** L'opération serveur, exécutée dans Netlify avec la clé existante, a identifié le bon compte Stripe puis tenté la préparation du vendeur MGM. Stripe a refusé `POST /v1/accounts` avec HTTP 400 `invalid_request_error`, en indiquant qu'il faut d'abord s'inscrire à Connect. La lecture des comptes et la session Checkout annulée de la veille ne validaient pas cette création réelle.
@@ -19,7 +25,7 @@ Le contrôle a utilisé une fonction Netlify temporaire sans URL publique, limit
   - sans session, `connect/onboard`, `connect/status`, `connect/dashboard` et `checkout` répondent 401 ; avec une origine étrangère, 403 ;
   - un webhook non signé reçoit 400 « Invalid signature » ;
   - les pages publiques répondent 200 et une fiche inconnue 404.
-- Catalogue encore vide : la première fiche reste à publier par le propriétaire (voir « Premier achat réel »).
+- Catalogue au moment de ce contrôle historique : vide. Paperclip Test a depuis été publié; voir la mise à jour du 5 novembre ci-dessus.
 
 Pour tester les routes `POST` avec curl, envoyer `Origin: https://marketpaperclip.com`. Sans cet en-tête, la garde d'origine répond 403 avant même la vérification de session.
 
@@ -59,13 +65,13 @@ L'état des comptes vendeurs est relu chez Stripe au retour de l'activation et a
 
 ## Ouvrir les paiements
 
-Le script ne touche pas à `PAYMENTS_ENABLED`. Ouvrir les ventes est une étape distincte, avec l'accord du propriétaire : `PAYMENTS_ENABLED=true` (et `LAUNCH_READY=true`) dans Netlify, puis redéploiement depuis `feature/profils`. `/api/config` doit alors répondre `"payments":true` et `"feeBps":1500`.
+Le script ne touche pas à `PAYMENTS_ENABLED`. Ouvrir les ventes est une étape distincte, avec l'accord du propriétaire : `PAYMENTS_ENABLED=true` (et `LAUNCH_READY=true`) dans Netlify, puis redéploiement depuis `main`. `/api/config` doit alors répondre `"payments":true` et `"feeBps":1500`.
 
-## Premier achat réel
+## Recette du paiement et première vente
 
-1. Le vendeur active son compte Stripe depuis le studio, puis publie sa fiche (validation par un modérateur). Les comptes vendeurs sont créés au Canada (`country: "CA"`).
-2. Achat avec une vraie carte depuis un autre compte (le créateur ne peut pas acheter sa propre fiche) : Stripe Checkout, retour sur le site, commande *Payée* (webhook), téléchargement.
-3. Remboursement depuis la modération : transfert et commission inversés, téléchargement retiré.
+1. Répéter le parcours dans un environnement isolé, avec clés et vendeur Stripe Sandbox : compte acheteur distinct, carte de test, Checkout, webhook, commande payée et téléchargement. Tester aussi le remboursement et la révocation du téléchargement dans ce même environnement.
+2. Pour ouvrir de véritables ventes, le vendeur termine son activation réelle depuis le studio avec ses informations exactes. Les comptes vendeurs sont créés au Canada (`country: "CA"`). La publication du produit et l'activation de l'encaissement sont deux étapes distinctes.
+3. Lors de la première acquisition réelle par un client, vérifier la commande confirmée par webhook et la livraison. Ne pas utiliser un autoachat entre comptes MGM pour cette validation.
 
 ## À décider
 
