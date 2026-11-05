@@ -4,7 +4,7 @@ Marketplace indépendant d’agents et de bundles d’agents, conçu pour MGM In
 
 ## État livré
 
-Le code de l’interface et du backend est implémenté. Sans configuration, le site fonctionne en avant-première avec quatre fiches explicitement marquées comme démonstration. Aucun faux compte, achat ou versement n’est créé. Les secrets Supabase, Stripe et les accès DNS n’étaient pas fournis pendant le développement : aucune transaction externe réelle n’a été validée.
+Le site est en production sur **https://marketpaperclip.com**, avec Supabase, la connexion Google et l'agent **Paperclip Test** publié à 1 $ CA. La vente réelle reste à valider : Stripe a confirmé que l'activation de Connect sur la plateforme doit être terminée par le titulaire. Voir [le diagnostic et les actions restantes](docs/HANDOFF-CLAUDE.md). Sans configuration locale, le site présente quatre fiches explicitement marquées comme démonstration.
 
 ### Fonctionnalités
 
@@ -12,8 +12,8 @@ Le code de l’interface et du backend est implémenté. Sans configuration, le 
 - **Le marché** (`/market`) : volume, ventes, prix plancher, tendances, top créateurs, activité en direct, nouvelles annonces; bandeau en direct sur l’accueil. Voir [docs/MARKET.md](docs/MARKET.md).
 - **Offres** entre acheteurs et vendeurs (accepter/refuser, 72 h pour payer le montant convenu), gestion des annonces (prix et pause sans nouvelle validation), statistiques de fiche et de créateur.
 - Fiches détaillées : prérequis, installation, version, licence, avis d’acheteurs confirmés.
-- Profils publics, favoris, studio créateur, brouillons, dépôt ZIP/JSON privé (20 Mo).
-- Inscription, confirmation du courriel, connexion, récupération et changement du mot de passe via Supabase Auth. OAuth GitHub optionnel.
+- Profils publics avec publications et médias, favoris, studio créateur, brouillons, dépôt ZIP/JSON privé (20 Mo).
+- Inscription, confirmation du courriel, connexion, récupération et changement du mot de passe via Supabase Auth. Connexion Google et OAuth GitHub optionnel.
 - Onboarding vendeur Stripe Connect, Checkout, commission serveur configurable et tableau des ventes.
 - Commandes privées, fichier et version figés lors de l’achat, liens de téléchargement de 60 secondes.
 - Modération administrative, demandes d’assistance et remboursements avec inversion du transfert et de la commission.
@@ -21,12 +21,12 @@ Le code de l’interface et du backend est implémenté. Sans configuration, le 
 
 ## Reprendre le projet sur un autre poste
 
-La version complète actuellement utilisée en production est sur **`feature/profils`**. Son état, les contrôles et le point restant pour Stripe sont consignés dans [docs/HANDOFF-CLAUDE.md](docs/HANDOFF-CLAUDE.md).
+La branche de référence est **`main`**. Elle regroupe les trois branches de travail du marché, des profils et de la recette internationale. Son état, les contrôles et le point restant pour Stripe sont consignés dans [docs/HANDOFF-CLAUDE.md](docs/HANDOFF-CLAUDE.md).
 
 Avec Git, Node.js 24 et npm :
 
 ```bash
-git clone --branch feature/profils https://github.com/mgminformatique/MarketPaperclip.git
+git clone --branch main https://github.com/mgminformatique/MarketPaperclip.git
 cd MarketPaperclip
 npm ci
 npm run check
@@ -36,7 +36,7 @@ Si le dépôt est déjà cloné :
 
 ```bash
 git fetch origin
-git switch feature/profils
+git switch main
 git pull --ff-only
 ```
 
@@ -60,7 +60,7 @@ Le projet utilise React 19, TypeScript et Vinext/Vite. Le build Worker s’exéc
 
 ## Mise en service
 
-Le projet Supabase désigné est `ltommtumsvvqxdknpkfd`. Le déploiement des six migrations et de la configuration Auth est préparé dans le workflow **Deploy Supabase**. Suivre [docs/SUPABASE-SETUP.md](docs/SUPABASE-SETUP.md) pour ajouter les accès sécurisés, exécuter le workflow et relier les variables serveur du site. Ce workflow ne déploie pas automatiquement le site ni ses secrets.
+Le projet Supabase désigné est `ltommtumsvvqxdknpkfd`. Le déploiement des huit migrations et de la configuration Auth est préparé dans le workflow manuel **Deploy Supabase**, limité à `main`. Suivre [docs/SUPABASE-SETUP.md](docs/SUPABASE-SETUP.md) pour ajouter les accès sécurisés, exécuter le workflow et relier les variables serveur du site. Ce workflow ne déploie pas automatiquement le site ni ses secrets.
 
 Lisez [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), puis [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md). Les scripts SQL à appliquer dans l’ordre sont dans `supabase/migrations/`.
 
@@ -72,7 +72,7 @@ La mise en ligne Netlify + GoDaddy + Stripe est décrite pas à pas dans [docs/N
 app/                     Pages et point d’entrée API (market.css : styles du marché)
 components/              Catalogue, studio, acquisitions, documentation, marché (market-floor, market-desk)
 lib/market/              Contrats, validation, Supabase, Stripe et orchestration API
-supabase/migrations/     Tables, RLS, permissions et procédures transactionnelles (001–007)
+supabase/migrations/     Tables, RLS, permissions et procédures transactionnelles (001–008)
 worker/                  Adaptateur Cloudflare et en-têtes de sécurité
 public/art/              Illustrations originales optimisées en WebP
 scripts/preflight.mjs    Contrôle des noms de variables requis, sans révéler les valeurs
@@ -91,6 +91,8 @@ docs/                    Déploiement, exploitation, validation et provenance de
 | `npm run build`     | Build de production Worker + assets                           |
 | `npm run build:netlify` | Build + fonction Netlify (`.netlify/v1/functions`)        |
 | `npm run preflight` | Vérification de la configuration fournie dans l’environnement |
+
+Le workflow **CI** exécute `npm ci`, `npm run check` et `npm run build:netlify` sur chaque push et pull request vers `main`, sous Node.js 24. Les tests de configuration Supabase font partie de la suite normale. Ce contrôle n'applique aucune migration et n'utilise aucun secret de production.
 
 Le fichier `.openai/hosting.json` identifie l’instance Sites existante. Préservez son identifiant pour mettre à jour cette instance; ne créez pas une nouvelle instance par erreur.
 

@@ -19,12 +19,12 @@ jobs:
       SUPABASE_PROJECT_REF: ltommtumsvvqxdknpkfd
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      SITE_URL: ${{ vars.MARKETPAPERCLIP_SITE_URL || 'https://marketpaperclip.murphylexus.chatgpt.site' }}
+      SITE_URL: ${{ vars.MARKETPAPERCLIP_SITE_URL || 'https://marketpaperclip.com' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
       - name: Validate deployment safeguards

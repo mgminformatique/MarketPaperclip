@@ -1,5 +1,17 @@
 # MarketPaperclip — Handoff
 
+## Consolidation sur `main` du 4 novembre 2026
+
+`main` devient la branche de référence pour reprendre le projet sur un autre poste. GitHub ne présentait aucune pull request ouverte lors de la revue : les travaux étaient sur trois branches. Elles sont toutes incluses dans l'historique de `main` : `feature/profils` (`fd6de45`), `feature/recette-internationale` (`b78aa91`) et `feature/marche-netlify` (`5322d0d`). Les branches sont conservées.
+
+Les trois conflits avec l'ancienne copie de la connexion Google ont été relus et résolus en conservant la version actuelle : fournisseur Google actif, profils et contrôles du studio Stripe. L'arbre du commit de fusion est identique à celui de `feature/profils`; aucune fonctionnalité ancienne n'a remplacé les corrections récentes.
+
+Corrections de la revue : URL canonique `https://marketpaperclip.com` par défaut dans le workflow Supabase; ses cinq tests de protection sont désormais inclus dans `npm test`. Le nouveau workflow **CI** vérifie l'installation verrouillée, TypeScript, les tests et le build Netlify sur les push et PR vers `main`, sous Node.js 24, sans secrets de production. Les actions GitHub sont fixées à leurs commits officiels. Le déploiement Supabase reste manuel et limité à `main`.
+
+Validation locale : **115 tests réussis**, TypeScript et build Netlify réussis, une fonction applicative générée et aucune fonction planifiée. Le lint conserve exactement les **45 erreurs préexistantes** de l'ancien `main`, sans nouvelle signature d'erreur. Le contrôle Gitleaks des commits entrants ne signale que la clé de vérification IndexNow, volontairement publique et identique au fichier de preuve servi par le site; aucun identifiant privé détecté.
+
+La production reste le déploiement propre indiqué ci-dessous; le site Netlify n'est pas relié à un dépôt Git pour les builds automatiques. Le blocage Stripe Connect et l'absence de vente réelle restent inchangés. Les instructions Git de reprise sont dans le [README](../README.md#reprendre-le-projet-sur-un-autre-poste).
+
 ## Diagnostic confirmé et production du 4 novembre 2026 au soir
 
 Déploiement `6aebcadc3ef825bed8ff8336` (`ready`), code `1f4e1ce`, publié à 00 h 16 UTC le 5 novembre (19 h 16 HE le 4). **110 tests**, TypeScript et build réussis. Le Checkout valide le vendeur avant la création d'une commande en attente. Le studio distingue maintenant une plateforme Connect non activée, avec message FR/EN et lien Stripe réservé à l'administrateur.
