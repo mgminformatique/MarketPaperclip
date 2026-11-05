@@ -82,7 +82,7 @@ if (process.env.MARKET_SELLER_SETUP_JOB === "true") {
   await writeFile(path.join(target, `${name}.mjs`), `import { bootstrapSeller } from "./bootstrap.mjs";
 export default async function run() {
   const result = await bootstrapSeller(process.env, { expiresAt: ${JSON.stringify(expiresAt)} });
-  console.log("seller_setup", JSON.stringify(result));
+  console.log("seller_setup", JSON.stringify({ runId: result.runId, status: result.status, stage: result.stage, code: result.code }));
   return new Response(null, { status: 204 });
 }
 export const config = { schedule: "* * * * *", generator: "marketpaperclip-operator-setup" };

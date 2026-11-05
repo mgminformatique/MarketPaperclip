@@ -6,7 +6,7 @@ afterEach(() => { globalThis.fetch = realFetch; });
 const env = { SUPABASE_URL: "https://ltommtumsvvqxdknpkfd.supabase.co", SUPABASE_SECRET_KEY: "fixture-server-secret", STRIPE_SECRET_KEY: "rk_live_fixture" };
 const now = Date.now();
 const options = { now, expiresAt: new Date(now + 60000).toISOString() };
-function network({ wrongPlatform = false, previous = false, existing = false } = {}) {
+function network({ wrongPlatform = false, previous = false, existing = false, errorMessage = null } = {}) {
   const calls = [];
   let linked = existing;
   let audit;
@@ -30,6 +30,7 @@ function network({ wrongPlatform = false, previous = false, existing = false } =
     if (url.pathname === "/v1/accounts/acct_seller") return Response.json({ id: "acct_seller", metadata: { user_id: ownerId }, charges_enabled: true, payouts_enabled: true });
     if (url.pathname === "/v1/accounts" && method === "GET") return Response.json({ data: [], has_more: false });
     if (url.pathname === "/v1/accounts" && method === "POST") {
+      if (errorMessage) return Response.json({ error: { type: "invalid_request_error", message: errorMessage } }, { status: 400 });
       const body = new URLSearchParams(init.body);
       assert.equal(body.get("metadata[user_id]"), ownerId);
       assert.equal(body.get("controller[stripe_dashboard][type]"), "express");
@@ -72,4 +73,18 @@ test("Wrong platforms and completed job replays cannot create a seller", async (
   state = network({ previous: true });
   assert.equal((await bootstrapSeller(env, options)).status, "already_complete");
   assert.equal(state.calls.length, 1);
+});
+test("Provider diagnostics preserve the failure stage without leaking credentials, email or temporary URLs", async () => {
+  let state = network({ errorMessage: "Invalid API Key provided: rk_live_fixture for owner@example.test" });
+  let result = await bootstrapSeller(env, options);
+  assert.equal(result.stage, "stripe:POST:/v1/accounts");
+  assert.equal(result.httpStatus, 400);
+  assert.equal(result.code, "invalid_request_error");
+  assert.ok(!JSON.stringify(state.audit()).includes("rk_live_fixture"));
+  assert.ok(!JSON.stringify(state.audit()).includes("owner@example.test"));
+  state = network({ errorMessage: "Setup required for owner@example.test at https://dashboard.stripe.com/private-token" });
+  result = await bootstrapSeller(env, options);
+  assert.match(result.message, /Setup required/);
+  assert.ok(!JSON.stringify(state.audit()).includes("private-token"));
+  assert.ok(!JSON.stringify(state.audit()).includes("owner@example.test"));
 });

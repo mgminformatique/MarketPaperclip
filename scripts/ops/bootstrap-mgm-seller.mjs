@@ -32,11 +32,19 @@ export async function bootstrapSeller(env, { expiresAt, now = Date.now() } = {})
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       const error = new Error("Operator request failed");
-      error.stage = stripe ? "stripe:" + path.split("?")[0] : "database:" + path.split("?")[0];
+      error.stage = (stripe ? "stripe:" : "database:") + method + ":" + path.split("?")[0];
       error.httpStatus = response.status;
       // Provider codes only, never its message or response body.
-      const code = data?.error?.code || data?.code || "request_failed";
+      const code = data?.error?.code || data?.error?.type || data?.code || "request_failed";
       error.providerCode = /^[a-zA-Z0-9_-]{1,80}$/.test(code) ? code : "request_failed";
+      if (stripe && typeof data?.error?.message === "string") {
+        const message = data.error.message;
+        error.safeMessage = /api.?key|authorization|bearer/i.test(message)
+          ? "Stripe refused the configured API credentials or permissions."
+          : message.replace(/\b(?:sk|rk|pk|whsec)_[A-Za-z0-9_*.]+/g, "[credential]")
+              .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[email]")
+              .replace(/https?:\/\/[^\s<>]+/g, "[provider-link]").slice(0, 500);
+      }
       throw error;
     }
     return data;
@@ -119,7 +127,7 @@ export async function bootstrapSeller(env, { expiresAt, now = Date.now() } = {})
     await audit(result);
     return { runId, ...result };
   } catch (error) {
-    const result = { status: "failed", stage: error.stage || "identity_or_link_check", httpStatus: error.httpStatus || null, code: error.providerCode || "operator_review_required", paymentPerformed: false };
+    const result = { status: "failed", stage: error.stage || "identity_or_link_check", httpStatus: error.httpStatus || null, code: error.providerCode || "operator_review_required", message: error.safeMessage || "Owner identity or account association requires review.", paymentPerformed: false };
     await audit(result).catch(() => {});
     return { runId, ...result };
   }
