@@ -18,6 +18,7 @@ export type Config = {
   PLATFORM_FEE_BPS?: string;
   PAYMENTS_ENABLED?: string;
   GITHUB_AUTH_ENABLED?: string;
+  GOOGLE_AUTH_ENABLED?: string;
   STRIPE_TAX_ENABLED?: string;
   LAUNCH_READY?: string;
   // Prices are shown unless explicitly hidden ("false").

@@ -10,6 +10,7 @@ export function publicConfig(c: Config) {
     payments: paymentsReady(c),
     demo: !accounts,
     github: c.GITHUB_AUTH_ENABLED === "true",
+    google: accounts && c.GOOGLE_AUTH_ENABLED === "true",
     // Free acquisitions only need the launch gate, not Stripe.
     launched: accounts && c.LAUNCH_READY === "true",
     prices: pricesVisible(c),

@@ -1,6 +1,9 @@
 // Run after deployment against the exact published client, without a browser.
 // Input on stdin: {"origin":"https://…", "bearer":"optional private Site token"}
 // The token stays in memory and is sent only to the specified HTTPS origin.
+// Optional googleFixture:true enables Google only inside this test's DOM;
+// it never changes the site configuration or starts an OAuth request.
+// authOnly:true checks the login dialog on production without demo catalogue assumptions.
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { JSDOM, VirtualConsole } from "jsdom";
@@ -11,6 +14,8 @@ const {
   origin: suppliedOrigin,
   bearer,
   locale: initialLocale = "fr",
+  googleFixture = false,
+  authOnly = false,
 } = JSON.parse(input);
 assert.ok(["fr", "en"].includes(initialLocale));
 let browserWindow;
@@ -35,6 +40,10 @@ async function get(input, options = {}) {
     redirect: "error",
   });
   assert.equal(response.status, 200, `GET ${url.pathname}`);
+  if (googleFixture && url.pathname === "/api/config") {
+    const config = await response.json();
+    return Response.json({ ...config, accounts: true, google: true });
+  }
   return response;
 }
 const initialUrl = origin + "/?lang=" + initialLocale;
@@ -61,8 +70,8 @@ assert.equal(
 assert.match(
   w.document.title,
   initialLocale === "en"
-    ? /The agent marketplace/
-    : /Le marketplace des agents/,
+    ? /The AI agent marketplace for developers/
+    : /Marketplace d’agents IA pour développeurs/,
 );
 Object.assign(w, {
   TextDecoder,
@@ -130,6 +139,9 @@ try {
     context,
   );
   for (const script of w.document.querySelectorAll("script:not([src])")) {
+    // Metadata such as JSON-LD is data, not an executable inline script.
+    if (script.type && !["text/javascript", "application/javascript"].includes(script.type))
+      continue;
     vm.runInContext(script.textContent, context);
   }
   const entry = w.document.querySelector("script#_R_")?.getAttribute("src");
@@ -138,7 +150,7 @@ try {
   await module.link(link);
   await module.evaluate();
   await until(
-    () => w.__NEXT_HYDRATED && w.document.querySelector(".save-button"),
+    () => w.__NEXT_HYDRATED && w.document.querySelector(authOnly ? ".app-shell" : ".save-button"),
     "hydration",
   );
   // Allow the effect that reads corrupt favorites to commit before testing clicks.
@@ -146,15 +158,17 @@ try {
   assert.ok(w.document.querySelector(".app-shell"));
   console.log("PASS client startup with invalid stored favorites");
 
-  click(w.document.querySelector(".filter-button"));
-  await until(() => w.document.querySelector(".extra-filters"), "filters");
-  const favorite = w.document.querySelector(".save-button");
-  click(favorite);
-  await until(
-    () => favorite.getAttribute("aria-pressed") === "true",
-    "favorite click",
-  );
-  assert.equal(JSON.parse(w.localStorage.getItem("mp-favorites")).length, 1);
+  if (!authOnly) {
+    click(w.document.querySelector(".filter-button"));
+    await until(() => w.document.querySelector(".extra-filters"), "filters");
+    const favorite = w.document.querySelector(".save-button");
+    click(favorite);
+    await until(
+      () => favorite.getAttribute("aria-pressed") === "true",
+      "favorite click",
+    );
+    assert.equal(JSON.parse(w.localStorage.getItem("mp-favorites")).length, 1);
+  }
   click(
     [...w.document.querySelectorAll("button")].find(
       (b) =>
@@ -163,6 +177,22 @@ try {
     ),
   );
   await until(() => w.document.querySelector('[role="dialog"]'), "login modal");
+  const google = () => w.document.querySelector('a[href="/api/auth/google"]');
+  const config = await (await get("/api/config")).json();
+  if (config.accounts && config.google) {
+    await until(google, "Google sign-in button");
+    assert.equal(google().textContent.trim(), initialLocale === "en" ? "Continue with Google" : "Continuer avec Google");
+    click(w.document.querySelector(".auth-link"));
+    await until(() => !w.document.querySelector('input[name="password"]'), "password recovery mode");
+    assert.equal(google(), null, "Google is absent from password recovery");
+    click(w.document.querySelector(".auth-switch button"));
+    await until(() => w.document.querySelector('input[name="display_name"]'), "signup mode");
+    assert.ok(google(), "Google also appears on signup");
+    console.log(`PASS Google login/signup and recovery exclusion${googleFixture ? " (local config fixture)" : ""}`);
+  } else {
+    assert.equal(google(), null, "Google stays hidden until configured");
+    console.log("PASS unconfigured Google is hidden");
+  }
   w.document.dispatchEvent(
     new w.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
   );
@@ -170,7 +200,13 @@ try {
     () => !w.document.querySelector('[role="dialog"]'),
     "modal close",
   );
-  console.log("PASS filters, favorites, login dialog and keyboard dismissal");
+  console.log("PASS login dialog and keyboard dismissal");
+  if (authOnly) {
+    assert.deepEqual(errors, []);
+    console.log(`PASS compiled-client authentication checks; initial SSR locale ${initialLocale}`);
+    dom.window.close();
+    process.exit(0);
+  }
 
   const languageButton = (code) =>
     w.document.querySelector(`.language-switch button[lang="${code}"]`);

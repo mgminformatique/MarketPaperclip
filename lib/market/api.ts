@@ -431,23 +431,39 @@ export async function marketApi(req: Request, c: Config) {
         route === "auth/recover" ? 5 : 15,
         600,
       );
-      if (route === "auth/github" && req.method === "GET") {
-        if (c.GITHUB_AUTH_ENABLED !== "true")
+      if (
+        (route === "auth/github" || route === "auth/google") &&
+        req.method === "GET"
+      ) {
+        const provider = route === "auth/google" ? "google" : "github";
+        const enabled =
+          provider === "google" ? c.GOOGLE_AUTH_ENABLED : c.GITHUB_AUTH_ENABLED;
+        if (enabled !== "true")
           throw new HttpError(
             503,
-            "La connexion GitHub sera disponible au lancement.",
+            provider === "google"
+              ? "La connexion Google n’est pas encore disponible. Utilisez votre adresse courriel."
+              : "La connexion GitHub sera disponible au lancement.",
           );
         const { data, error } = await ctx.client!.auth.signInWithOAuth({
-          provider: "github",
+          provider,
           options: {
             redirectTo: siteOrigin(c, req) + "/api/auth/callback",
             skipBrowserRedirect: true,
+            ...(provider === "google"
+              ? { scopes: "email profile", queryParams: { prompt: "select_account" } }
+              : {}),
           },
         });
         check(error);
         return ctx.redirect(data.url!);
       }
       if (route === "auth/callback" && req.method === "GET") {
+        const providerError = url.searchParams.get("error");
+        if (providerError)
+          return ctx.redirect(
+            providerError === "access_denied" ? "/?auth=cancelled" : "/?auth=invalid",
+          );
         let error;
         const code = url.searchParams.get("code");
         const token = url.searchParams.get("token_hash");

@@ -112,6 +112,89 @@ test("Absent Supabase configuration cannot fabricate an account", async () => {
   );
   assert.equal(r.status, 503);
 });
+test("Google remains hidden and unavailable until accounts and the provider are configured", async () => {
+  for (const config of [{ GOOGLE_AUTH_ENABLED: "true" }, c]) {
+    const response = await marketApi(request("config"), config);
+    assert.equal(((await response.json()) as { google: boolean }).google, false);
+  }
+  authFetch(() => { throw new Error("Unexpected authentication request"); });
+  const disabled = await marketApi(request("auth/google"), c);
+  assert.equal(disabled.status, 503);
+  assert.equal(disabled.headers.get("location"), null);
+});
+test("Google sign-in uses PKCE, a private verifier cookie and the configured callback", async () => {
+  authFetch(() => { throw new Error("Unexpected authentication request"); });
+  const response = await marketApi(request("auth/google"), {
+    ...c, GOOGLE_AUTH_ENABLED: "true",
+  });
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const location = new URL(response.headers.get("location")!);
+  assert.equal(location.origin, c.SUPABASE_URL);
+  assert.equal(location.pathname, "/auth/v1/authorize");
+  assert.equal(location.searchParams.get("provider"), "google");
+  assert.equal(location.searchParams.get("redirect_to"), origin + "/api/auth/callback");
+  assert.equal(location.searchParams.get("scopes"), "email profile");
+  assert.equal(location.searchParams.get("prompt"), "select_account");
+  assert.equal(location.searchParams.get("access_type"), null);
+  assert.equal(location.searchParams.get("code_challenge_method"), "s256");
+  assert.match(location.searchParams.get("code_challenge")!, /^[\w-]{43}$/);
+  const verifier = response.headers.get("set-cookie")!;
+  assert.match(verifier, /auth-token-code-verifier=/);
+  for (const attribute of [/HttpOnly/i, /Secure/i, /SameSite=Lax/i])
+    assert.match(verifier, attribute);
+});
+test("OAuth returns to an approved alias so the PKCE cookie stays on the same host", async () => {
+  authFetch(() => { throw new Error("Unexpected authentication request"); });
+  const response = await marketApi(request("auth/google"), {
+    ...c, SITE_URL: "https://marketpaperclip.com", SITE_ALIASES: origin,
+    GOOGLE_AUTH_ENABLED: "true",
+  });
+  const location = new URL(response.headers.get("location")!);
+  assert.equal(location.searchParams.get("redirect_to"), origin + "/api/auth/callback");
+});
+test("OAuth exchanges the callback code server-side and refuses an external return destination", async () => {
+  let exchanged = false;
+  authFetch((url, init) => {
+    assert.equal(url.pathname, "/auth/v1/token");
+    assert.equal(url.searchParams.get("grant_type"), "pkce");
+    const body = JSON.parse(String(init?.body));
+    assert.equal(body.auth_code, "test-authorization-code");
+    assert.ok(body.code_verifier);
+    exchanged = true;
+    return Response.json(session);
+  });
+  const start = await marketApi(request("auth/google"), { ...c, GOOGLE_AUTH_ENABLED: "true" });
+  const verifierCookie = start.headers.getSetCookie()
+    .map((cookie) => cookie.split(";")[0]).join("; ");
+  const response = await marketApi(
+    request("auth/callback?code=test-authorization-code&next=https://evil.test", "GET", undefined, { cookie: verifierCookie }), c,
+  );
+  assert.equal(exchanged, true);
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("location"), "/library");
+  assert.match(response.headers.get("set-cookie")!, /HttpOnly/i);
+});
+test("OAuth denial and invalid callbacks return a safe local message without exchanging tokens", async () => {
+  authFetch(() => { throw new Error("Unexpected authentication request"); });
+  for (const [query, expected] of [
+    ["error=access_denied&error_description=untrusted&next=https://evil.test", "/?auth=cancelled"],
+    ["error=server_error", "/?auth=invalid"],
+    ["", "/?auth=invalid"],
+  ]) {
+    const response = await marketApi(request("auth/callback?" + query), c);
+    assert.equal(response.headers.get("location"), expected);
+  }
+});
+test("GitHub keeps its own feature switch and OAuth provider", async () => {
+  authFetch(() => { throw new Error("Unexpected authentication request"); });
+  const disabled = await marketApi(request("auth/github"), { ...c, GOOGLE_AUTH_ENABLED: "true" });
+  assert.equal(disabled.status, 503);
+  const enabled = await marketApi(request("auth/github"), { ...c, GITHUB_AUTH_ENABLED: "true" });
+  const location = new URL(enabled.headers.get("location")!);
+  assert.equal(location.searchParams.get("provider"), "github");
+  assert.equal(location.searchParams.get("prompt"), null);
+});
 test("CSRF: cross-origin and missing-origin writes are refused", async () => {
   assert.throws(
     () =>
