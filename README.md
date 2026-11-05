@@ -19,6 +19,31 @@ Le code de l’interface et du backend est implémenté. Sans configuration, le 
 - Modération administrative, demandes d’assistance et remboursements avec inversion du transfert et de la commission.
 - Réconciliation des paiements, remboursements et litiges par webhook signé, avec journal transactionnel et déduplication.
 
+## Reprendre le projet sur un autre poste
+
+La version complète actuellement utilisée en production est sur **`feature/profils`**. Son état, les contrôles et le point restant pour Stripe sont consignés dans [docs/HANDOFF-CLAUDE.md](docs/HANDOFF-CLAUDE.md).
+
+Avec Git, Node.js 24 et npm :
+
+```bash
+git clone --branch feature/profils https://github.com/mgminformatique/MarketPaperclip.git
+cd MarketPaperclip
+npm ci
+npm run check
+```
+
+Si le dépôt est déjà cloné :
+
+```bash
+git fetch origin
+git switch feature/profils
+git pull --ff-only
+```
+
+Les variables de production restent configurées dans Netlify et Supabase. Pour travailler localement avec ces services, renseignez `.dev.vars` à partir de `.env.example` avec les accès du poste. Sans configuration, le site présente les fiches de démonstration.
+
+L'archive publiée de l'agent de test est versionnée dans [packages/releases/paperclip-test-1.0.0.zip](packages/releases/paperclip-test-1.0.0.zip), avec son empreinte SHA-256 et ses sources dans `packages/paperclip-test/`.
+
 ## Installation
 
 Node.js 22.13+ (tests exécutés sous Node.js 24), npm et un projet Supabase dédié.
