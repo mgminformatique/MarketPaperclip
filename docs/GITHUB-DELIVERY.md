@@ -65,4 +65,6 @@ Les tests automatisés utilisent GitHub simulé et PostgreSQL PGlite. Ils ne rem
 
 Exécuter `npm run check` et `npm run build:netlify`. Les tests du connecteur font partie de `npm test`.
 
+Vérification du 5 novembre 2026 : TypeScript, 133 tests et build Netlify réussis. Le client compilé a été vérifié dans Chromium sur ordinateur et mobile avec des réponses API simulées : retour de connexion avec brouillon conservé, sélection dépôt/Release/archive, version reprise du tag et enregistrement des identifiants exacts. La recette avec une vraie GitHub App et un dépôt privé reste à effectuer; les variables de cette App étaient absentes de Netlify lors du contrôle.
+
 Références officielles : [sécurité du callback](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/about-the-setup-url), [droits sur les dépôts](https://docs.github.com/en/rest/apps/installations#list-repositories-accessible-to-the-user-access-token), [jetons d’installation limités](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app), [téléchargement des fichiers](https://docs.github.com/en/rest/releases/assets#get-a-release-asset).

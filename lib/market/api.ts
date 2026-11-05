@@ -1380,10 +1380,6 @@ export async function marketApi(req: Request, c: Config) {
       check(ee);
       if (existing && existing.status !== "pending")
         return ctx.json({ url: "/library" });
-      // Revalidate the original snapshot when resuming a pending Checkout session.
-      const delivery = existing?.source_provider === "github_release" ? existing.github_source : f.github_source;
-      if (existing?.source_provider === "github_release" || (!existing && f.source_provider === "github_release"))
-        await checkGitHubAvailability(db, c, p.id, delivery);
       if (amount > 0 && !paymentsReady(c))
         throw new HttpError(503, "Les paiements ne sont pas encore ouverts.");
       let fee = 0;
@@ -1426,6 +1422,13 @@ export async function marketApi(req: Request, c: Config) {
         check(xe);
         order = null;
       }
+      // Verify the snapshot actually used: an unchanged pending order, or the
+      // current product file when a stale-price Checkout has been replaced.
+      const delivery = order?.source_provider === "github_release"
+        ? order.github_source
+        : f.github_source;
+      if (order?.source_provider === "github_release" || (!order && f.source_provider === "github_release"))
+        await checkGitHubAvailability(db, c, p.id, delivery);
       // Refuse an unavailable seller before recording a new pending purchase.
       const paymentClient = amount > 0 ? stripe(c) : null;
       let sellerAccountId: string | undefined;

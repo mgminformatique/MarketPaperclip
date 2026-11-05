@@ -414,6 +414,34 @@ test("seller cannot attach a repository outside their verified installation gran
   );
   assert.equal(response.status, 403);
 });
+test("replacing a stale-price checkout checks the current archive instead of the abandoned order", async () => {
+  let expired = false;
+  let verified = false;
+  let inserted: Record<string, unknown> | undefined;
+  mockFetch(async (url, req) => {
+    if (url.pathname === "/rest/v1/products")
+      return Response.json([{ id: product, seller_id: seller, title: "Agent", version: "1.2.0", price_cents: 0, license: "MIT",
+        product_files: { source_provider: "github_release", github_source: source, version: "1.2.0", sha256: source.sha256, storage_path: null } }]);
+    if (url.pathname === "/rest/v1/orders") {
+      if (req.method === "GET") return Response.json([{ ...order, status: "pending", amount_cents: 100,
+        github_source: { ...source, release_id: 700, asset_id: 900 } }]);
+      if (req.method === "PATCH") { expired = true; return new Response(null, { status: 204 }); }
+      assert.equal(verified, true);
+      inserted = await req.json();
+      return Response.json({ ...inserted, id: orderId });
+    }
+    if (url.pathname === "/rest/v1/rpc/market_github_source_health") {
+      assert.equal(expired, true);
+      assert.deepEqual((await req.json() as { p_source: unknown }).p_source, source);
+      verified = true;
+      return Response.json(null);
+    }
+    throw new Error("Unexpected " + url);
+  });
+  const response = await marketApi(request("checkout", "POST", { product_id: product, license_accepted: true }), config);
+  assert.equal(response.status, 200);
+  assert.deepEqual(inserted?.github_source, source);
+});
 test("installation callback requires a matching state cookie and a single-use unexpired seller claim", async () => {
   mockFetch(() => {
     throw new Error("State mismatch must stop before network access");

@@ -22,11 +22,13 @@ export function GitHubPackagePicker({
   selection,
   onSelect,
   beforeConnect,
+  returnPath,
 }: {
   disabled: boolean;
   selection: GitHubSelection | null;
   onSelect: (selection: GitHubSelection | null, version?: string) => void;
   beforeConnect: () => void;
+  returnPath: string;
 }) {
   const { t } = useI18n();
   const [repositories, setRepositories] = useState<Repository[]>([]);
@@ -85,7 +87,7 @@ export function GitHubPackagePicker({
     try {
       beforeConnect();
       const data = await api("github/start", {
-        next: window.location.pathname,
+        next: returnPath,
       });
       window.location.assign(data.url);
     } catch (e) {

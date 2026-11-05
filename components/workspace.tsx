@@ -648,6 +648,7 @@ export function ProductEditor({
   const [dirty, setDirty] = useState(false);
   // The moderator's note when a submission was sent back for changes.
   const [note, setNote] = useState("");
+  const githubDraftKey = "mp-github-draft-" + (session.user?.id || "visitor") + "-" + (productId || "new");
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   const set = (key: string, v: any) => {
@@ -657,19 +658,23 @@ export function ProductEditor({
   useEffect(() => {
     if (id === "new") {
       try {
+        const githubDraft = JSON.parse(localStorage.getItem(githubDraftKey) || "null");
         const draft = JSON.parse(
           localStorage.getItem("mp-draft-" + (session.user?.id || "visitor")) ||
             "null",
         );
-        if (draft) {
-          setForm({ ...emptyProduct, ...draft });
-          setTags((draft.tags || []).join(", "));
+        const restored = githubDraft?.form || draft;
+        if (restored) {
+          setForm({ ...emptyProduct, ...restored, status: "draft" });
+          setTags((restored.tags || []).join(", "));
           setPrice(
-            typeof draft.price_cents === "number"
-              ? String(draft.price_cents / 100)
+            typeof restored.price_cents === "number"
+              ? String(restored.price_cents / 100)
               : "",
           );
           setPriceEdited(true);
+          if (githubDraft?.deliveryMode) setDeliveryMode(githubDraft.deliveryMode);
+          if (githubDraft) setDirty(true);
         }
       } catch {}
       return;
@@ -685,11 +690,15 @@ export function ProductEditor({
         if (!p) throw new Error("Produit introuvable dans votre studio.");
         const clean = { ...emptyProduct };
         for (const k of Object.keys(clean)) (clean as any)[k] = p[k];
+        let githubDraft: { form?: typeof clean; deliveryMode?: string } | null = null;
+        try { githubDraft = JSON.parse(localStorage.getItem(githubDraftKey) || "null"); } catch {}
+        if (githubDraft?.form)
+          for (const k of Object.keys(clean)) (clean as any)[k] = (githubDraft.form as any)[k] ?? (clean as any)[k];
         clean.status = "draft";
         setForm(clean);
         setCoverPreview(p.cover_url || "");
-        setTags(p.tags.join(", "));
-        setPrice(String(p.price_cents / 100));
+        setTags(clean.tags.join(", "));
+        setPrice(typeof clean.price_cents === "number" ? String(clean.price_cents / 100) : "");
         setPriceEdited(true);
         const f = Array.isArray(p.product_files)
           ? p.product_files[0]
@@ -698,6 +707,10 @@ export function ProductEditor({
         if (f) {
           setExistingProvider(f.source_provider || "supabase");
           setDeliveryMode(f.source_provider || "supabase");
+        }
+        if (githubDraft) {
+          setDirty(true);
+          if (githubDraft.deliveryMode) setDeliveryMode(githubDraft.deliveryMode);
         }
         setNote(p.status === "rejected" ? p.moderation_note || "" : "");
       })
@@ -779,6 +792,8 @@ export function ProductEditor({
       } else notify("Brouillon enregistré.");
       setDirty(false);
       localStorage.removeItem("mp-draft-" + (session.user?.id || "visitor"));
+      localStorage.removeItem(githubDraftKey);
+      localStorage.removeItem("mp-github-draft-" + session.user!.id + "-new");
       onSaved?.({ id: pid, status: publish ? "pending" : "draft" });
       if (!embedded) {
         if (publish) router.push("/studio");
@@ -1046,7 +1061,8 @@ export function ProductEditor({
                   {deliveryMode === "github_release" ? <>
                     {existingProvider === "github_release" && existingFile && <p>{t("Archive enregistrée : ")}{existingFile}</p>}
                     {config.githubDelivery && session.user ? <GitHubPackagePicker disabled={busy} selection={githubSelection}
-                      beforeConnect={() => localStorage.setItem("mp-draft-" + session.user!.id, JSON.stringify(payload()))}
+                      returnPath={"/studio/" + (productId || "new") + "?lang=" + locale}
+                      beforeConnect={() => { localStorage.setItem(githubDraftKey, JSON.stringify({ form: payload(), deliveryMode })); setDirty(false); }}
                       onSelect={(value, version) => { setGithubSelection(value); setDirty(true); if (version) set("version", version); }} />
                       : <Notice>{t("La livraison GitHub n’est pas encore configurée.")}</Notice>}
                   </> : <div className="upload-zone">
