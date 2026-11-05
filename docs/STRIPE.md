@@ -4,8 +4,14 @@ Décision du propriétaire (3 novembre 2026) : produits **payants** dès le lanc
 
 ## État (3 novembre 2026, 23 h 30, heure de l'Est)
 
+**Contrôle réel du 4 novembre 2026, 19 h 13 HE : Stripe Connect reste à activer sur la plateforme.** L'opération serveur, exécutée dans Netlify avec la clé existante, a identifié le bon compte Stripe puis tenté la préparation du vendeur MGM. Stripe a refusé `POST /v1/accounts` avec HTTP 400 `invalid_request_error`, en indiquant qu'il faut d'abord s'inscrire à Connect. La lecture des comptes et la session Checkout annulée de la veille ne validaient pas cette création réelle.
+
+Terminer l'[activation Connect dans le compte MarketPaperClip](https://dashboard.stripe.com/connect), puis reprendre **Configurer les paiements** dans le studio MGM. Le propriétaire confirme les informations et les accords demandés par Stripe. Aucune vente à 1 $ n'a été effectuée. Le studio conserve désormais le code d'erreur et affiche une action dédiée à l'administrateur. Une tentative d'achat chez un vendeur indisponible ne crée plus de commande en attente.
+
+Le contrôle a utilisé une fonction Netlify temporaire sans URL publique, limitée à dix minutes, sans export des clés, sans acceptation de contrat et sans coordonnées bancaires fournies par l'opérateur. Cette fonction a ensuite été retirée de la production; aucun travail récurrent n'est conservé. La connexion CLI supplémentaire n'est pas nécessaire pour lire ce diagnostic.
+
 - **Paiements ouverts en production.** Clé **restreinte** du mode réel saisie par le propriétaire dans la boîte de dialogue masquée. Le script a vérifié toutes les permissions nécessaires, y compris une session Checkout d'essai de 1 $ CAD, aussitôt annulée.
-- Compte Stripe « MarketPaperClip » `acct_1UXHVqCzSwrXhCYK` : Canada, CAD, paiements, versements et dossier validés, Connect accessible.
+- Compte Stripe « MarketPaperClip » `acct_1UXHVqCzSwrXhCYK` : Canada, CAD, paiements, versements et dossier validés. L'API de lecture des comptes Connect était accessible; la création effective d'un vendeur n'avait pas été validée.
 - Webhook `we_1UXvmdCzSwrXhCYKTl6aYCmI` : actif, 8 événements, API `2026-10-28.endive`.
 - Netlify, contexte production : `STRIPE_SECRET_KEY` et `STRIPE_WEBHOOK_SECRET` (secrètes), `PLATFORM_FEE_BPS=1500` et `PAYMENTS_ENABLED=true`. Les aperçus de déploiement gardent `PAYMENTS_ENABLED=false` et n'ont pas la clé.
 - Déploiement de production `6aeab46fe80c6a780cba706e` (commit `3473f69`). Vérifié en ligne :

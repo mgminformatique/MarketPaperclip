@@ -1,5 +1,15 @@
 # MarketPaperclip — Handoff
 
+## Diagnostic confirmé et production du 4 novembre 2026 au soir
+
+Déploiement `6aebcadc3ef825bed8ff8336` (`ready`), code `1f4e1ce`, publié à 00 h 16 UTC le 5 novembre (19 h 16 HE le 4). **110 tests**, TypeScript et build réussis. Le Checkout valide le vendeur avant la création d'une commande en attente. Le studio distingue maintenant une plateforme Connect non activée, avec message FR/EN et lien Stripe réservé à l'administrateur.
+
+**Le blocage réel est l'activation de Stripe Connect sur la plateforme**, et pas seulement une liaison manquante en base. Le contrôle serveur a authentifié le compte attendu `acct_1UXHVqCzSwrXhCYK`; Stripe a refusé la préparation du vendeur (`POST /v1/accounts`, HTTP 400 `invalid_request_error`) en indiquant qu'il faut s'inscrire à Connect. La preuve expurgée est dans `audit_log`, action `operator.seller.setup`, notamment à `2026-11-05T00:13:06.791684Z`. Aucun vendeur ni achat n'a été créé. La vérification de la veille utilisait une requête de création volontairement invalide pour sonder les permissions : elle ne prouvait pas que l'inscription Connect était terminée.
+
+L'opération a utilisé les clés déjà stockées dans Netlify, sans les sortir du serveur. Sa fonction temporaire n'avait pas d'URL publique et était limitée à dix minutes. Elle est retirée du déploiement final : une fonction applicative, zéro planification. Le code opérateur reste sous `scripts/ops/`; un build normal ne le déploie pas. Le CLI Stripe et Projects sont installés; la demande de connexion du CLI a expiré sans autorisation. Ne pas en faire un prérequis au diagnostic déjà obtenu.
+
+Prochaine action externe : le titulaire termine [Connect dans son tableau Stripe](https://dashboard.stripe.com/connect), compte MarketPaperClip, puis l'activation vendeur dans le studio. Ensuite seulement : vrai Checkout à 1 $ CA maximum depuis un autre compte acheteur, webhook, téléchargement et SHA-256. La publicité internationale et les validations fiscales/pays restent en attente de la recette complète. Voir [le rapport](LAUNCH-AUDIT-2026-11-04.md) et [Stripe](STRIPE.md).
+
 ## Mise à jour du 4 novembre 2026 après la recette de lancement
 
 Production Netlify : déploiement `6aebb6a3a93714f201f59d7b` (`ready`), code `d665d38`, suite à `e1c9cfe`. Prix explicitement en CAD, langue du Checkout et des retours conservée, prix Stripe explicitement hors taxes, diagnostic des clés `rk_live_` corrigé. TypeScript, 103 tests, build Netlify, 50 contrôles publics et contrôle du client compilé FR/EN réussis; audit des dépendances de production sans vulnérabilité connue.

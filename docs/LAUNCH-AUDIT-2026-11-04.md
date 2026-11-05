@@ -1,6 +1,19 @@
 # Recette de vente et lancement international
 
-Le site est accessible et l'agent **Paperclip Test 1.0.0** est publié à **1 $ CA**. La vente réelle reste à effectuer : aucun compte vendeur Stripe n'était relié lors du contrôle. Le lancement publicitaire payant reste en attente de cette vente et des vérifications propres aux pays ciblés.
+Le site est accessible et l'agent **Paperclip Test 1.0.0** est publié à **1 $ CA**. La vente réelle reste à effectuer : Stripe a refusé la création du vendeur MGM parce que **Connect n'est pas encore activé sur le compte de la plateforme**. Le lancement publicitaire payant reste en attente de cette vente et des vérifications propres aux pays ciblés.
+
+## Vérification complémentaire et dernier déploiement
+
+Le 4 novembre 2026 à 19 h 13 HE (5 novembre à 00 h 13 UTC), un contrôle exécuté dans Netlify avec les accès serveur existants a vérifié le compte Stripe attendu et demandé la préparation du vendeur MGM. Stripe a répondu HTTP 400 `invalid_request_error` à `POST /v1/accounts`, avec le motif « inscription à Connect requise ». Aucun compte vendeur n'a été créé et aucun paiement n'a été exécuté.
+
+Dernier déploiement : `6aebcadc3ef825bed8ff8336`, code `1f4e1ce`, publié le 5 novembre 2026 à 00 h 16 UTC, état `ready`. Une seule fonction applicative est déployée et aucune planification ne reste active. La fonction temporaire du contrôle refusait les appels par URL publique (HTTP 403) et a été retirée après le diagnostic.
+
+- TypeScript, **110 tests** et build Netlify réussis.
+- Le Checkout vérifie le vendeur avant d'enregistrer une nouvelle commande en attente.
+- Le studio affiche le motif de configuration Connect et propose le lien Stripe à l'administrateur; l'API n'expose pas les détails bruts du fournisseur.
+- Le contrôle du studio compilé en FR/EN utilise un propriétaire et une réponse d'erreur simulés uniquement dans le DOM local, sans connexion réelle ni écriture distante. La recette interactive d'une session propriétaire reste distincte.
+
+L'action qui bloque la suite est l'[activation Connect dans Stripe](https://dashboard.stripe.com/connect), sur le compte **MarketPaperClip**, puis la configuration du vendeur dans le studio. Les clés et le webhook de la veille restent configurés. L'autorisation supplémentaire du CLI n'est pas nécessaire pour ce diagnostic réalisé depuis Netlify.
 
 ## État vérifié le 4 novembre 2026
 
@@ -40,7 +53,7 @@ Ces corrections n'activent pas Stripe Tax, ne créent aucune inscription fiscale
 
 ## Terminer la vente de 1 dollar
 
-1. Sur le compte vendeur MGM, ouvrir [le studio](https://marketpaperclip.netlify.app/studio) et **Configurer les paiements**. Le propriétaire complète lui-même l'identité, les coordonnées bancaires et les accords demandés par Stripe. Les paiements **et** les versements doivent être actifs.
+1. Terminer d'abord l'[activation Connect de la plateforme](https://dashboard.stripe.com/connect), puis, sur le compte vendeur MGM, ouvrir [le studio](https://marketpaperclip.netlify.app/studio) et **Configurer les paiements**. Le propriétaire confirme lui-même les informations et les accords demandés par Stripe. Les paiements **et** les versements doivent être actifs.
 2. Utiliser un autre compte acheteur confirmé : le créateur ne peut pas acheter son propre produit. Ouvrir la fiche Paperclip Test, accepter la licence et passer par le Checkout normal du site.
 3. Le plafond autorisé par le propriétaire est **1 $ CA au total**. Si le total affiché dépasse 1 $, arrêter avant de payer. La carte est saisie directement dans Stripe, jamais dans le chat ou un journal.
 4. Constater un vrai paiement du mode réel dans Stripe, une commande passée à `paid` par le webhook, le montant total et la commission de 15 cents. Vérifier aussi la destination Connect et l'état du transfert; la commission brute n'est pas un bénéfice après frais Stripe.
