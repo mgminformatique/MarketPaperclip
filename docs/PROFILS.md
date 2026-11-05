@@ -1,42 +1,38 @@
-# Profils publics — bannière, photo et publications
+# Profils des membres — photo, couverture et modèles
 
-Demande du propriétaire (3 novembre 2026) : « une section profil comme Facebook, bannière, photos, avec des posts de nos agents ou bundles d’agents à vendre ».
+Chaque inscription crée automatiquement un profil, même sans agent publié ni compte Stripe. La page personnelle **`/profile`** permet à chaque membre connecté de gérer son identité et ses créations. Le profil public reste accessible à **`/creators/<nom>`**.
 
-La page `/creators/<nom>` existante devient un profil social, dans le style déjà en place (mêmes panneaux, couleurs, boutons et onglets ; nouvelles règles `mk-` dans `app/market.css`, aucune règle existante modifiée) :
+## Utilisation
 
-- **Bannière** : photo choisie par le créateur ; sans photo, la bannière décorative d’origine reste affichée.
-- **Photo de profil** : remplace les initiales partout où l’avatar apparaît (profil, barre du haut, cartes d’agents, page produit, page Créateurs, paramètres).
-- **Onglets** : *Publications*, *Agents et bundles* (la grille d’origine), *Photos*. Un créateur sans publication s’ouvre sur ses agents pour les visiteurs.
-- **Publications** : texte (2 000 caractères), jusqu’à 4 photos et, au choix, un de ses agents ou bundles publiés, présenté en carte avec son prix et un lien vers la fiche. Colonne « À vendre » et aperçu des photos à côté du fil.
-- **Modération** : l’auteur supprime ses publications ; un modérateur (`MARKET_ADMIN_EMAILS`) peut supprimer celles des autres, ce qui est consigné dans `audit_log` (`post.removed`).
+- **Mon profil** dans la navigation, ou un clic sur sa photo dans la barre du haut, ouvre son propre profil.
+- **Photo et couverture** : modification depuis les boutons caméra du profil. Sans image, les initiales et la couverture décorative restent disponibles.
+- **Modifier le profil** : nom public, identifiant, bio et site web se modifient dans une fenêtre sur place. Le lien public peut être copié depuis la page.
+- **Publications** : fil affiché pour tous les membres, texte, jusqu'à quatre photos et un de leurs modèles publiés. La colonne de présentation contient la bio, les modèles en vente et les photos.
+- **Créer un modèle**, ou le bouton **Modèle** du formulaire de publication, ouvre l'éditeur directement sur le profil : description, couverture du produit, fichier ZIP/JSON, prérequis, installation, prix et licence. Les modèles du marketplace restent des agents ou bundles; cette évolution ne change pas les formats de fichiers acceptés.
+- **Enregistrer** conserve le brouillon et laisse l'éditeur ouvert. **Soumettre à la validation** ferme l'éditeur et affiche son statut dans **Mes modèles**, sans passage par le studio. Une confirmation protège les modifications non enregistrées à la fermeture.
+- **Mes modèles** présente au propriétaire ses brouillons, validations, corrections, archives et modèles publiés, avec pagination. Le bouton **Partager sur mon profil** d'un modèle publié le joint au formulaire de publication.
+- Pour un visiteur, l'onglet **Modèles** affiche uniquement les créations publiées. Aucun brouillon ni commande d'édition n'est rendu. Les photos des publications sont réunies dans l'onglet **Photos**.
 
-Le contenu des publications est rendu côté serveur (référencement, aperçus de liens) ; la bannière (ou la photo) sert d’image de partage du profil.
+Le studio reste accessible pour les ventes, les offres et les paiements. La publication d'un modèle payant ne remplace pas l'activation du vendeur Stripe.
 
-## Sécurité et vie privée
+## Données et accès
 
-- Les navigateurs ne peuvent que lire : ni écriture directe dans `posts`, ni modification de `avatar_url` / `banner_url` (droits SQL, testés dans `tests/database.test.mjs`).
-- Images reconnues par leur signature (JPG, PNG, WebP ; SVG refusé), 3 Mo maximum, rangées dans le compartiment public `profile-media` sous `<id du membre>/avatar|banner|posts/`.
-- Les photos sont redimensionnées et réencodées dans le navigateur avant l’envoi (moins lourdes depuis un cellulaire). Le serveur retire en plus les métadonnées EXIF, XMP et IPTC des JPEG : la position GPS et l’appareil photo ne sont jamais publiés.
-- Une publication ne peut joindre que les photos téléversées par son auteur et qu’un de ses propres agents publiés.
-- Une photo de profil ou une bannière remplacée ou retirée, et les photos d’une publication supprimée, sont effacées du stockage. (Une photo ajoutée au formulaire puis retirée avant de publier reste dans le stockage, sans être affichée nulle part.)
-- Limites : 40 images et 20 publications par heure et par membre, en plus de la limite générale.
+L'évolution réutilise la migration **008**, déjà appliquée en production. **Aucune nouvelle migration ni modification des droits n'est nécessaire.** Le profil personnel est exclu de l'indexation; les profils publics conservent leur rendu serveur et leurs métadonnées de partage.
 
-## Mise en production
+Les navigateurs ne peuvent que lire les publications. Toute écriture passe par les routes authentifiées : identité du membre, possession du produit et droits de modération sont vérifiés côté serveur. Les brouillons viennent de l'API privée du studio, uniquement pour le propriétaire du profil.
 
-**État au 3 novembre 2026 : en ligne**, avec l’accord du propriétaire. Migration 008 appliquée à la base de production (`ltommtumsvvqxdknpkfd`), puis déploiement Netlify de production `6aea2b28d4db1f119a9fe111` depuis la branche `feature/profils` (615c511) ; version actuelle `6aea47008049355b373825a9` (avec la connexion Google active). Vérifié en production : pages et API (catalogue, créateurs, publications refusées sans connexion), compartiment `profile-media`, nouveaux styles servis, démarrage de l’interface en français et en anglais (`node --experimental-vm-modules scripts/check-client-interactions.mjs`). La connexion Google (modifications non commitées trouvées dans le dépôt principal, d’origine inconnue) est intégrée à cette branche (1609acc). Fusionner `feature/profils` avant tout prochain déploiement depuis une autre branche, sinon les profils disparaîtraient du site ; dans le dépôt principal, ces mêmes modifications non commitées doivent alors être abandonnées au profit de la branche.
+Les images JPG, PNG et WebP sont reconnues par leur signature, limitées à 3 Mo, redimensionnées et réencodées côté client. Le serveur retire aussi les métadonnées EXIF, XMP et IPTC des JPEG. Les SVG sont refusés. Les médias sont rangés sous l'identifiant de leur propriétaire dans `profile-media`; une publication ne peut joindre que les médias et modèles publiés de son auteur.
 
-L’ordre compte : la migration d’abord, puis le code (le catalogue lit `avatar_url`).
+Une photo de profil ou couverture remplacée est effacée du stockage. La suppression d'une publication retire aussi ses photos; les photos retirées du formulaire avant sa publication peuvent rester sans être affichées. Les limites existantes restent de 40 images et 20 publications par heure et par membre. La suppression par un modérateur est consignée dans `audit_log`.
+
+## Vérifications du 5 novembre 2026
+
+TypeScript et **116 tests** couvrent notamment les droits, les images et métadonnées, les publications, l'accès au profil avant toute vente et l'exclusion de `/profile` de l'indexation.
+
+Les contrôles du client compilé utilisent JSDOM et des réponses locales, sans écriture distante : propriétaire en français et anglais (photo, couverture, détails, partage d'un modèle, publication, brouillon, fichier, soumission, bouton global et fermeture sans enregistrer), visiteur sans brouillons ni commandes d'édition, accès anonyme avec invitation à se connecter. Exemple après lancement du serveur de production local :
 
 ```sh
-supabase db push --linked --project-ref ltommtumsvvqxdknpkfd --dry-run   # doit lister 008 seulement
-supabase db push --linked --project-ref ltommtumsvvqxdknpkfd
-netlify deploy --build --site <SITE_ID>          # aperçu
-netlify deploy --build --site <SITE_ID> --prod   # production
+printf '%s' '{"origin":"http://127.0.0.1:8893","locale":"fr","profileFixture":"owner"}' | node --experimental-vm-modules scripts/check-client-interactions.mjs
 ```
 
-`008_profile_posts.sql` est additive : la version actuellement en ligne continue de fonctionner avec elle.
-
-## Vérifié le 3 novembre 2026
-
-- `npm test` : 93 tests (dont 7 pour les profils et 1 SQL/RLS).
-- Parcours navigateur réel (Chromium) sur le build Netlify local branché à une pile Supabase locale, 47 vérifications : visiteur, propriétaire, autre membre, modérateur, mobile 390 px sans défilement horizontal, anglais, rendu serveur, nettoyage du stockage, photo de 4000 px avec GPS → 2000 px sans métadonnées. Aucune erreur dans la console.
+`profileFixture` accepte `owner`, `visitor` ou `anonymous`. Pour la fixture visiteur locale, le profil de démonstration `mgm-labs` sert de page initiale. Ces contrôles ne constituent pas une vérification visuelle desktop/mobile : l'accès au navigateur de l'opérateur était indisponible pendant la session.

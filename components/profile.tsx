@@ -2,17 +2,19 @@
 // Public profile in the style of a social page: banner, profile photo and
 // posts presenting the creator's agents and bundles for sale. Built from the
 // existing components and palette; new rules live in app/market.css (mk-).
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "./navigation-link";
 import {
   ArrowUpRight,
   Camera,
   Code2,
+  Globe,
   ImagePlus,
   Images,
   Loader2,
   Newspaper,
   Package,
+  Plus,
   Send,
   Trash2,
   X,
@@ -215,7 +217,7 @@ export function ProfileCover({
       onClick={() => setEditing(true)}
     >
       <Camera size={15} />
-      {t(" Modifier la bannière")}
+      {t(" Modifier la couverture")}
     </button>
   );
   return (
@@ -286,11 +288,15 @@ function PostComposer({
   products,
   onPosted,
   notify,
+  onCreateModel,
+  attachProduct,
 }: {
   profile: PublicProfile;
   products: Product[];
   onPosted: (post: Post) => void;
   notify: (message: string) => void;
+  onCreateModel: () => void;
+  attachProduct: { id: string } | null;
 }) {
   const { t } = useI18n();
   const input = useRef<HTMLInputElement>(null);
@@ -300,6 +306,9 @@ function PostComposer({
   const [productId, setProductId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (attachProduct) setProductId(attachProduct.id);
+  }, [attachProduct]);
   async function add(files: File[]) {
     const room = POST_IMAGE_LIMIT - images.length - uploading;
     const chosen = files.slice(0, Math.max(0, room));
@@ -343,6 +352,7 @@ function PostComposer({
   const empty = !body.trim() && !images.length && !productId;
   return (
     <form className="panel mk-panel mk-composer" onSubmit={publish}>
+      <div className="mk-composer-title"><h3>{t("Créer une publication")}</h3><span><Globe size={12} /> {t("Public")}</span></div>
       <div className="mk-composer-head">
         <Avatar name={profile.display_name} src={profile.avatar_url} />
         <textarea
@@ -351,7 +361,7 @@ function PostComposer({
           onChange={(e) => setBody(e.target.value)}
           maxLength={2000}
           rows={3}
-          placeholder={t("Présentez un agent ou un bundle que vous vendez…")}
+          placeholder={t("Qu’avez-vous créé ? Présentez votre prochain modèle…")}
         />
       </div>
       {(images.length > 0 || uploading > 0) && (
@@ -378,6 +388,9 @@ function PostComposer({
       )}
       {error && <Notice error>{t(error)}</Notice>}
       <div className="mk-composer-tools">
+        <button type="button" className="button secondary small mk-create-model" disabled={busy || uploading > 0} onClick={onCreateModel}>
+          <Plus size={15} /> {t("Modèle")}
+        </button>
         <button
           type="button"
           className="button secondary small"
@@ -620,6 +633,10 @@ export function ProfileFeed({
   notify,
   onOpen,
   onTab,
+  onCreateModel,
+  attachProduct,
+  website,
+  bio,
 }: {
   profile: PublicProfile;
   products: Product[];
@@ -632,6 +649,10 @@ export function ProfileFeed({
   notify: (message: string) => void;
   onOpen: (url: string) => void;
   onTab: (tab: "products" | "photos") => void;
+  onCreateModel: () => void;
+  attachProduct: { id: string } | null;
+  website: string;
+  bio: string;
 }) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
@@ -674,6 +695,12 @@ export function ProfileFeed({
   return (
     <div className="mk-profile-feed">
       <aside className="mk-profile-side">
+        <section className="panel mk-panel mk-profile-aside mk-profile-intro">
+          <h3>{t("À propos")}</h3>
+          <p>{bio || t("Découvrez mes modèles, mes agents et les coulisses de mes créations.")}</p>
+          {website && <a href={website} target="_blank" rel="noreferrer"><Globe size={15} /><span>{website.replace(/^https:\/\//, "")}</span><ArrowUpRight size={13} /></a>}
+          {owner && <button type="button" className="button secondary small" onClick={onCreateModel}><Plus size={15} /> {t("Créer mon prochain modèle")}</button>}
+        </section>
         <ForSale products={products} onAll={() => onTab("products")} />
         <section className="panel mk-panel mk-profile-aside">
           <div className="panel-title">
@@ -695,6 +722,8 @@ export function ProfileFeed({
             profile={profile}
             products={products}
             notify={notify}
+            onCreateModel={onCreateModel}
+            attachProduct={attachProduct}
             onPosted={(post) => setPosts((current) => [post, ...current])}
           />
         )}
@@ -713,7 +742,7 @@ export function ProfileFeed({
         ) : (
           <Empty icon={Newspaper} title="Aucune publication pour le moment.">
             {owner
-              ? "Partagez votre premier agent ou bundle : il apparaîtra ici."
+              ? "Présentez votre travail ou créez un modèle avec le bouton Modèle, juste au-dessus."
               : "Ce créateur n’a encore rien publié. Découvrez ses agents et bundles."}
           </Empty>
         )}

@@ -277,10 +277,12 @@ export function Modal({
   title,
   children,
   onClose,
+  className = "",
 }: {
   title: string;
   children: React.ReactNode;
   onClose: () => void;
+  className?: string;
 }) {
   const { t, locale } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
@@ -327,7 +329,7 @@ export function Modal({
       }}
     >
       <div
-        className="modal"
+        className={"modal " + className}
         ref={ref}
         role="dialog"
         aria-modal="true"

@@ -119,6 +119,27 @@ const cameraJpeg = new Uint8Array([
   0xff, 0xd9,
 ]);
 
+test("Every member has a public profile before publishing a model or activating payments", async () => {
+  const calls = network(call => {
+    if (call.url.pathname === "/rest/v1/profiles")
+      return Response.json({ id: member, username: "new-member", display_name: "New member", bio: "", website: "", avatar_url: null, banner_url: null });
+    if (call.url.pathname === "/rest/v1/products" || call.url.pathname === "/rest/v1/posts")
+      return Response.json([]);
+    if (call.url.pathname === "/rest/v1/rpc/market_creator_stats") return Response.json(null);
+    if (call.url.pathname === "/rest/v1/rpc/market_activity") return Response.json([]);
+  });
+  const response = await marketApi(request("creators/new-member", "GET", undefined, false), config);
+  assert.equal(response.status, 200);
+  const data = await response.json() as { profile: { id: string; avatar_url: string | null; banner_url: string | null }; products: unknown[]; posts: unknown[] };
+  assert.equal(data.profile.id, member);
+  assert.equal(data.profile.avatar_url, null);
+  assert.equal(data.profile.banner_url, null);
+  assert.deepEqual(data.products, []);
+  assert.deepEqual(data.posts, []);
+  assert.equal(calls.find(call => call.url.pathname === "/rest/v1/products")?.url.searchParams.get("status"), "eq.published");
+  assert.ok(!calls.some(call => call.url.pathname.includes("seller_accounts")));
+});
+
 test("Camera metadata is removed from JPEG files; image data is kept intact", () => {
   const clean = stripJpegMetadata(cameraJpeg);
   const text = new TextDecoder("latin1").decode(clean);

@@ -610,9 +610,17 @@ export function ProductEditor({
   signIn,
   notify,
   id,
+  embedded = false,
+  onSaved,
+  onDirtyChange,
+  onBusyChange,
 }: Props & {
   config: Configuration;
   id: string;
+  embedded?: boolean;
+  onSaved?: (result: { id: string; status: "draft" | "pending" }) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -636,6 +644,8 @@ export function ProductEditor({
   const [dirty, setDirty] = useState(false);
   // The moderator's note when a submission was sent back for changes.
   const [note, setNote] = useState("");
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   const set = (key: string, v: any) => {
     setForm((f) => ({ ...f, [key]: v }));
     setDirty(true);
@@ -751,8 +761,11 @@ export function ProductEditor({
       } else notify("Brouillon enregistré.");
       setDirty(false);
       localStorage.removeItem("mp-draft-" + (session.user?.id || "visitor"));
-      if (publish) router.push("/studio");
-      else if (id === "new") router.replace("/studio/" + pid);
+      onSaved?.({ id: pid, status: publish ? "pending" : "draft" });
+      if (!embedded) {
+        if (publish) router.push("/studio");
+        else if (id === "new") router.replace("/studio/" + pid);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -771,7 +784,7 @@ export function ProductEditor({
       : null;
   return (
     <>
-      <Link href="/studio" className="back-link">
+      {!embedded && <><Link href="/studio" className="back-link">
         <ArrowLeft size={15} />
         {t(" Retour au studio")}
       </Link>
@@ -795,6 +808,7 @@ export function ProductEditor({
           {t(productId ? "Brouillon enregistré" : "Nouveau produit")}
         </span>
       </div>
+      </>}
       <div className="editor-steps">
         {t(
           ["La création", "Le package", "Le lancement"].map((label, i) => (
@@ -1204,9 +1218,9 @@ export function ProductEditor({
                     </span>
                   </label>
                   <Notice>
-                    {t(
-                      "Chaque publication est vérifiée avant son apparition dans le catalogue. Vous pourrez suivre son statut dans votre studio.",
-                    )}
+                    {t(embedded
+                      ? "Après validation, votre modèle apparaîtra sur votre profil et dans le catalogue. Retrouvez son statut dans Mes modèles."
+                      : "Chaque publication est vérifiée avant son apparition dans le catalogue. Vous pourrez suivre son statut dans votre studio.")}
                   </Notice>
                 </>
               ),

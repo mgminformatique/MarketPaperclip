@@ -6,9 +6,12 @@
 // authOnly:true checks the login dialog on production without demo catalogue assumptions.
 // studioFixture:true checks seller setup errors using local API fixtures only;
 // it never signs in a real user or sends a write to production.
+// profileFixture:"owner"|"visitor"|"anonymous" checks profile editing and model
+// publication using local response fixtures; never writes to the live API.
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { JSDOM, VirtualConsole } from "jsdom";
+import { createProfileFixture, checkProfileClient } from "./profile-client-fixture.mjs";
 
 let input = "";
 for await (const chunk of process.stdin) input += chunk;
@@ -19,16 +22,20 @@ const {
   googleFixture = false,
   authOnly = false,
   studioFixture = false,
+  profileFixture = false,
 } = JSON.parse(input);
 assert.ok(["fr", "en"].includes(initialLocale));
 let browserWindow;
 const origin = new URL(suppliedOrigin).origin;
-assert.equal(new URL(origin).protocol, "https:");
+assert.ok(new URL(origin).protocol === "https:" || (!bearer && new URL(origin).protocol === "http:" && new URL(origin).hostname === "127.0.0.1"), "HTTPS or an uncredentialed local QA server is required");
+const profileQA = profileFixture ? createProfileFixture(profileFixture) : null;
 const networkFetch = globalThis.fetch;
 let fixtureOnboardingCalls = 0;
 async function get(input, options = {}) {
   const url = new URL(typeof input === "string" ? input : input.url, origin);
   assert.equal(url.origin, origin, "QA requests must stay on the Site origin");
+  const profileResponse = profileQA?.fetch(url, options);
+  if (profileResponse) return profileResponse;
   if (studioFixture) {
     if (url.pathname === "/api/me") return Response.json({
       user: { id: "11111111-1111-4111-8111-111111111111", email: "qa@example.test" },
@@ -70,7 +77,7 @@ async function get(input, options = {}) {
   }
   return response;
 }
-const initialUrl = origin + (studioFixture ? "/studio" : "/") + "?lang=" + initialLocale;
+const initialUrl = origin + (profileQA ? profileQA.initialPath : studioFixture ? "/studio" : "/") + "?lang=" + initialLocale;
 const html = await (await get(initialUrl)).text();
 const errors = [];
 const virtualConsole = new VirtualConsole();
@@ -91,7 +98,7 @@ assert.equal(
   initialLocale,
   "server-rendered language",
 );
-assert.match(
+if (!profileQA) assert.match(
   w.document.title,
   studioFixture ? /My workspace|Mon espace/ : initialLocale === "en"
     ? /The AI agent marketplace for developers/
@@ -109,12 +116,19 @@ Object.assign(w, {
   AbortSignal,
   fetch: get,
   scrollTo() {},
+  confirm: () => true,
   matchMedia: () => ({
     matches: false,
     addEventListener() {},
     removeEventListener() {},
   }),
 });
+if (profileQA) {
+  w.createImageBitmap = async () => ({ width:2400, height:1600, close() {} });
+  w.HTMLCanvasElement.prototype.getContext = () => ({ drawImage() {} });
+  w.HTMLCanvasElement.prototype.toBlob = function (done, type) { done(new w.Blob([new Uint8Array([0x89,0x50,0x4e,0x47])],{type})); };
+  w.HTMLElement.prototype.scrollIntoView = () => {};
+}
 w.addEventListener("error", (event) => errors.push(String(event.error)));
 w.localStorage.setItem("mp-favorites", "null"); // Reproduce the stored-state regression.
 const context = dom.getInternalVMContext();
@@ -174,13 +188,19 @@ try {
   await module.link(link);
   await module.evaluate();
   await until(
-    () => w.__NEXT_HYDRATED && w.document.querySelector(authOnly || studioFixture ? ".app-shell" : ".save-button"),
+    () => w.__NEXT_HYDRATED && w.document.querySelector(authOnly || studioFixture || profileQA ? ".app-shell" : ".save-button"),
     "hydration",
   );
   // Allow the effect that reads corrupt favorites to commit before testing clicks.
   await new Promise((resolve) => setTimeout(resolve, 150));
   assert.ok(w.document.querySelector(".app-shell"));
   console.log("PASS client startup with invalid stored favorites");
+
+  if (profileQA) {
+    await checkProfileClient({w,mode:profileFixture,fixture:profileQA,until,click,errors,locale:initialLocale});
+    dom.window.close();
+    process.exit(0);
+  }
 
   if (studioFixture) {
     await until(() => w.document.body.textContent.includes("QA Seller"), "local owner fixture");

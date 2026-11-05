@@ -49,6 +49,7 @@ try {
   await Promise.all(["en", "fr"].flatMap((locale) => [
     ...["/", "/market", "/docs", "/terms", "/privacy", "/licenses"].map((path) => checkPage(path, locale)),
     checkPage("/library", locale, true),
+    checkPage("/profile", locale, true),
     checkPage("/admin", locale, true),
     checkPage("/agents/launch-audit-missing", locale, true, 404),
   ]));

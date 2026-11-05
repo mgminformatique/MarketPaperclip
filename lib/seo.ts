@@ -144,7 +144,7 @@ export const staticPages: Record<string, StaticPage> = {
 };
 
 // Signed-in areas: useful to people, not to search results.
-const privatePrefixes = ["/studio", "/library", "/settings", "/admin", "/favorites"];
+const privatePrefixes = ["/profile", "/studio", "/library", "/settings", "/admin", "/favorites"];
 
 export type SeoRoute =
   | { kind: "static"; path: string }
@@ -289,7 +289,9 @@ export function routeMetadata(
     title: {
       absolute:
         route.kind === "private"
-          ? en
+          ? route.path === "/profile"
+            ? en ? "My profile | MarketPaperclip" : "Mon profil | MarketPaperclip"
+            : en
             ? "My workspace | MarketPaperclip"
             : "Mon espace | MarketPaperclip"
           : en

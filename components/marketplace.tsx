@@ -48,6 +48,7 @@ import {
   Terminal,
   TrendingUp,
   Users,
+  UserRound,
   Workflow,
   X,
 } from "lucide-react";
@@ -104,6 +105,7 @@ import {
   ProfilePhoto,
   ProfilePhotos,
 } from "./profile";
+import { ProfileDetailsModal, ProfileModels, ProfileModelSaved } from "./profile-models";
 export type Session = {
   user: {
     id: string;
@@ -156,6 +158,7 @@ export default function Marketplace({
   const router = useRouter();
   const [config, setConfig] = useState<Configuration>(initialConfig);
   const [session, setSession] = useState<Session>({ user: null });
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [auth, setAuth] = useState<"login" | "signup" | "recover" | null>(null);
   const [mobile, setMobile] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -184,6 +187,7 @@ export default function Marketplace({
   const refresh = useCallback(async () => {
     const d = await api("me");
     setSession(d);
+    setSessionLoaded(true);
     return d;
   }, []);
   useEffect(() => {
@@ -194,7 +198,7 @@ export default function Marketplace({
           "Le service est momentanément inaccessible. Rechargez la page.",
         ),
       );
-    refresh().catch(() => {});
+    refresh().catch(() => setSessionLoaded(true));
     try {
       setFavorites(readFavorites(localStorage));
     } catch {}
@@ -343,6 +347,13 @@ export default function Marketplace({
         <div className="side-section-label">{t("MON ESPACE")}</div>
         <nav aria-label={t("Mon espace")}>
           <Link
+            className={"nav-item " + (pathname === "/profile" || pathname === "/creators/" + session.profile?.username ? "active" : "")}
+            href="/profile"
+          >
+            <UserRound size={18} />
+            {t(" Mon profil")}
+          </Link>
+          <Link
             className={"nav-item " + (pathname === "/library" ? "active" : "")}
             href="/library"
           >
@@ -437,7 +448,7 @@ export default function Marketplace({
             <span className="top-divider" />
             {t(
               session.user ? (
-                <Link className="account-button" href="/settings">
+                <Link className="account-button" href="/profile" aria-label={t("Voir mon profil")}>
                   <Avatar
                     name={session.profile?.display_name || "Dev"}
                     src={session.profile?.avatar_url}
@@ -450,9 +461,9 @@ export default function Marketplace({
                 </button>
               ),
             )}
-            <Link className="button primary small" href="/studio/new">
+            <Link className="button primary small" href={session.user ? "/profile?create=model" : "/studio/new"}>
               <Plus size={16} />
-              <span>{t("Publier un agent")}</span>
+              <span>{t("Publier un modèle")}</span>
             </Link>
           </div>
         </header>
@@ -484,6 +495,7 @@ export default function Marketplace({
               <Creators />
             ) : pathname.startsWith("/creators/") ? (
               <CreatorProfile
+                key={pathname}
                 name={pathname.split("/")[2]}
                 favorites={favorites}
                 save={save}
@@ -491,7 +503,25 @@ export default function Marketplace({
                 session={session}
                 refresh={refresh}
                 notify={notify}
+                config={config}
+                signIn={signIn}
               />
+            ) : pathname === "/profile" ? (
+              !sessionLoaded ? <Loading /> : session.user && session.profile ? (
+                <CreatorProfile
+                  key={session.profile.username}
+                  name={session.profile.username}
+                  favorites={favorites}
+                  save={save}
+                  session={session}
+                  refresh={refresh}
+                  notify={notify}
+                  config={config}
+                  signIn={signIn}
+                />
+              ) : <Empty icon={UserRound} title="Votre profil, vos créations." action={<button type="button" className="button primary" onClick={signIn}>{t("Me connecter")}</button>}>
+                {t("Connectez-vous pour ajouter votre photo, votre couverture et publier vos modèles.")}
+              </Empty>
             ) : pathname === "/studio" ? (
               <Studio
                 session={session}
@@ -1925,6 +1955,8 @@ function CreatorProfile({
   session,
   refresh,
   notify,
+  config,
+  signIn,
 }: {
   name: string;
   favorites: string[];
@@ -1933,8 +1965,13 @@ function CreatorProfile({
   session: Session;
   refresh: () => Promise<Session>;
   notify: (message: string) => void;
+  config: Configuration;
+  signIn: () => void;
 }) {
   const { t, locale } = useI18n();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   type CreatorView = {
     profile: any;
     products: Product[];
@@ -1950,6 +1987,25 @@ function CreatorProfile({
   const [error, setError] = useState("");
   const [tab, setTab] = useState<ProfileTab | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [editorDirty, setEditorDirty] = useState(false);
+  const [editorBusy, setEditorBusy] = useState(false);
+  const [modelsRevision, setModelsRevision] = useState(0);
+  const [modelSubmitted, setModelSubmitted] = useState(false);
+  const [attachProduct, setAttachProduct] = useState<{ id: string } | null>(null);
+  const owner = !data?.demo && !!session.user && session.user.id === data?.profile.id;
+  const createRequested = searchParams.get("create") === "model";
+  useEffect(() => {
+    if (owner && createRequested) {
+      setEditorDirty(false);
+      setEditorBusy(false);
+      setEditing("new");
+      const query = new URLSearchParams(searchParams.toString());
+      query.delete("create");
+      router.replace(pathname + (query.size ? "?" + query : ""));
+    }
+  }, [owner, createRequested, pathname, router, searchParams]);
   useEffect(() => {
     setData((current) =>
       current && current.profile?.username === name ? current : null,
@@ -1961,13 +2017,24 @@ function CreatorProfile({
       .catch((e) => setError(e.message));
   }, [name]);
   if (error) return <Notice error>{t(error)}</Notice>;
-  if (!data) return <Loading />;
-  const owner =
-    !data.demo && !!session.user && session.user.id === data.profile.id;
+  if (!data || data.profile.username !== name) return <Loading />;
   const posts = data.posts || [];
-  // Posts first, as on a social profile; a creator who has not posted yet
-  // opens on the listings for visitors.
-  const active: ProfileTab = tab ?? (posts.length || owner ? "posts" : "products");
+  // Every member has the same timeline, even before their first listing.
+  const active: ProfileTab = tab ?? "posts";
+  const reloadProfile = async () => {
+    const next = await api("creators/" + encodeURIComponent(name));
+    setData(next);
+  };
+  const createModel = () => {
+    setEditorDirty(false);
+    setEditorBusy(false);
+    setEditing("new");
+  };
+  const closeEditor = () => {
+    if (editorBusy) return;
+    if (editorDirty && !window.confirm(t("Fermer sans enregistrer vos modifications ?"))) return;
+    setEditing(null);
+  };
   const setPosts = (update: (posts: Post[]) => Post[]) =>
     setData((d) => d && { ...d, posts: update(d.posts || []) });
   const setPicture = (field: "avatar_url" | "banner_url", url: string | null) => {
@@ -2006,7 +2073,7 @@ function CreatorProfile({
     </button>
   );
   return (
-    <>
+    <div className="mk-social-profile">
       <ProfileCover
         profile={data.profile}
         owner={owner}
@@ -2018,20 +2085,25 @@ function CreatorProfile({
           owner={owner}
           onChange={setPicture}
         />
-        <div>
+        <div className="mk-profile-identity">
+          <span className="mk-profile-label">{t(owner ? "MON PROFIL" : "PROFIL PUBLIC")}</span>
           <h1>{data.profile.display_name}</h1>
           <p>
             {t("@")}
             {data.profile.username}
           </p>
+          <div className="mk-profile-counts"><span><strong>{data.products.length}</strong> {t("modèles publiés")}</span><span><strong>{posts.length}{data.more_posts ? "+" : ""}</strong> {t("publications")}</span></div>
         </div>
         {owner ? (
           <div className="mk-profile-actions">
-            {website}
-            <Link className="button secondary" href="/settings">
+            <button type="button" className="button primary" onClick={createModel}>
+              <Plus size={16} /> {t("Créer un modèle")}
+            </button>
+            <button type="button" className="button secondary" onClick={() => setEditingDetails(true)}>
               <Pencil size={15} />
               {t(" Modifier le profil")}
-            </Link>
+            </button>
+            <Link className="icon-button mk-profile-settings" href="/settings" aria-label={t("Paramètres du compte")}><Settings2 size={18} /></Link>
           </div>
         ) : (
           t(website)
@@ -2051,14 +2123,15 @@ function CreatorProfile({
           </div>
         ),
       )}
-      {!data.demo && <CreatorMarketStats stats={data.stats ?? null} />}
+      {owner && <div className="mk-profile-share"><CopyButton value={typeof window === "undefined" ? "https://marketpaperclip.com/creators/" + data.profile.username : window.location.origin + "/creators/" + data.profile.username} label="Copier le lien du profil" /></div>}
+      {owner && modelSubmitted && <ProfileModelSaved />}
       <div
         className="workspace-tabs mk-profile-tabs"
         role="tablist"
         aria-label={t("Sections du profil")}
       >
         {tabButton("posts", "Publications")}
-        {tabButton("products", "Agents et bundles ", data.products.length)}
+        {tabButton("products", owner ? "Mes modèles" : "Modèles", owner ? undefined : data.products.length)}
         {tabButton("photos", "Photos")}
       </div>
       <div
@@ -2079,6 +2152,10 @@ function CreatorProfile({
           notify={notify}
           onOpen={setPhoto}
           onTab={setTab}
+          onCreateModel={createModel}
+          attachProduct={attachProduct}
+          website={data.profile.website || ""}
+          bio={data.profile.bio || ""}
         />
       </div>
       <div
@@ -2087,7 +2164,7 @@ function CreatorProfile({
         aria-labelledby="profile-tab-products"
         hidden={active !== "products"}
       >
-        <div className="section-heading">
+        {owner ? <ProfileModels key={modelsRevision} onCreate={createModel} onEdit={(id) => { setEditorDirty(false); setEditorBusy(false); setEditing(id); }} onShare={(id) => { setAttachProduct({ id }); setTab("posts"); document.getElementById("profile-panel-posts")?.scrollIntoView({ block: "start", behavior: "smooth" }); }} /> : <><div className="section-heading">
           <h2>
             {t("Les créations du studio")}{" "}
             <span className="muted">
@@ -2109,6 +2186,8 @@ function CreatorProfile({
             )),
           )}
         </div>
+        {!data.products.length && <Empty icon={Box} title="Aucun modèle publié pour le moment.">Les créations de ce membre apparaîtront ici.</Empty>}
+        </>}
       </div>
       <div
         role="tabpanel"
@@ -2130,6 +2209,22 @@ function CreatorProfile({
           <img className="mk-lightbox" src={photo} alt="" />
         </Modal>
       )}
+      {owner && editingDetails && <ProfileDetailsModal profile={data.profile} onClose={() => setEditingDetails(false)} onSaved={async () => {
+        const next = await refresh();
+        notify("Profil mis à jour.");
+        if (next.profile?.username && next.profile.username !== name) {
+          if (pathname.startsWith("/creators/")) router.replace("/creators/" + next.profile.username);
+        } else await reloadProfile();
+      }} />}
+      {owner && editing && <Modal title={editing === "new" ? "Publier un modèle" : "Modifier le modèle"} className="mk-model-modal" onClose={closeEditor}>
+        <p className="muted">{t("Un agent ou un bundle, un fichier et votre prix. Tout commence sur votre profil.")}</p>
+        <ProductEditor key={editing} id={editing} session={session} config={config} signIn={signIn} notify={notify} embedded onDirtyChange={setEditorDirty} onBusyChange={setEditorBusy} onSaved={({ status }) => {
+          setEditorDirty(false);
+          setModelsRevision(n => n + 1);
+          reloadProfile().catch(() => {});
+          if (status === "pending") { setEditing(null); setModelSubmitted(true); setTab("products"); }
+        }} />
+      </Modal>}
       {!data.demo && (
         <section className="panel mk-panel mk-profile-activity">
           <div className="panel-title">
@@ -2137,9 +2232,10 @@ function CreatorProfile({
               <Activity size={15} /> {t("Activité du studio")}
             </h3>
           </div>
+          <CreatorMarketStats stats={data.stats ?? null} />
           <ActivityList events={data.activity || []} showSeller={false} />
         </section>
       )}
-    </>
+    </div>
   );
 }

@@ -52,12 +52,17 @@ test("Routes are classified for indexing; private and unknown pages are not inde
     slug: "recon-pro-1a2b3c4d",
   });
   assert.equal(seoRoute("/creators/atelier-nova").kind, "creator");
-  for (const p of ["/studio", "/studio/new", "/library", "/settings", "/admin", "/favorites"])
+  for (const p of ["/profile", "/profile?create=model", "/studio", "/studio/new", "/library", "/settings", "/admin", "/favorites"])
     assert.equal(seoRoute(p).kind, "private", p);
   for (const p of ["/agents/<script>", "/creators/x", "/whatever", "/agents/a/b"])
     assert.equal(seoRoute(p).kind, "missing", p);
   const hidden = routeMetadata(seoRoute("/library"), "fr", origin);
   assert.deepEqual(hidden.robots, { index: false, follow: false });
+  for (const locale of ["fr", "en"] as const) {
+    const profile = routeMetadata(seoRoute("/profile"), locale, origin);
+    assert.deepEqual(profile.robots, { index: false, follow: false });
+    assert.deepEqual(profile.title, { absolute: locale === "fr" ? "Mon profil | MarketPaperclip" : "My profile | MarketPaperclip" });
+  }
   const missing = routeMetadata(seoRoute("/agents/gone"), "en", origin, { product: null });
   assert.deepEqual(missing.robots, { index: false, follow: true });
 });
@@ -160,6 +165,6 @@ test("Unknown pages, listings and creators answer a real 404; existing ones do n
   assert.equal((await initialData("/creators/personne-inconnue")).missing, true);
   assert.equal((await initialData("/agents/" + demo.slug)).missing, false);
   assert.equal((await initialData("/creators/" + demo.profiles!.username)).missing, false);
-  for (const path of ["/", "/agents", "/market", "/studio/new", "/library", "/terms"])
+  for (const path of ["/", "/agents", "/market", "/profile", "/studio/new", "/library", "/terms"])
     assert.ok(!(await initialData(path)).missing, path);
 });
