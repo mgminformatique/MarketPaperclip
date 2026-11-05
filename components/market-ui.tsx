@@ -36,7 +36,11 @@ export async function api<T = any>(
     credentials: "same-origin",
   });
   const d: any = await r.json();
-  if (!r.ok) throw new Error(d.error || "Une erreur est survenue.");
+  if (!r.ok)
+    throw Object.assign(new Error(d.error || "Une erreur est survenue."), {
+      code: d.code,
+      status: r.status,
+    });
   return d;
 }
 export function Brand() {

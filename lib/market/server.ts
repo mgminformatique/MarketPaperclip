@@ -189,6 +189,10 @@ export function stripe(c: Config) {
     maxNetworkRetries: 2,
   });
 }
+export function stripeConnectSetupRequired(error: unknown) {
+  return error instanceof Stripe.errors.StripeInvalidRequestError &&
+    /signed up for Connect/i.test(error.message);
+}
 export async function requireAdmin(db: SupabaseClient, id: string) {
   const { data, error } = await db
     .from("market_admins")

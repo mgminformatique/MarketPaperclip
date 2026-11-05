@@ -19,6 +19,7 @@ import {
   originGuard,
   rateLimit,
   stripe,
+  stripeConnectSetupRequired,
   requireAdmin,
   check,
   siteOrigin,
@@ -1246,7 +1247,15 @@ export async function marketApi(req: Request, c: Config) {
             metadata: { user_id: u.id },
           },
           { idempotencyKey: "seller-" + u.id },
-        );
+        ).catch((error: unknown) => {
+          if (stripeConnectSetupRequired(error))
+            throw new HttpError(
+              503,
+              "L’activation Stripe Connect du marketplace doit être terminée avant de configurer les vendeurs.",
+              "stripe_connect_setup_required",
+            );
+          throw error;
+        });
         const { error } = await db
           .from("seller_accounts")
           .upsert(

@@ -115,6 +115,7 @@ export function Studio({
   const [error, setError] = useState("");
   const [tab, setTab] = useState("products");
   const [pendingOffers, setPendingOffers] = useState(0);
+  const [connectSetupRequired, setConnectSetupRequired] = useState(false);
   const load = () =>
     api("studio?page=" + page + "&salesPage=" + salesPage)
       .then(setData)
@@ -147,6 +148,7 @@ export function Studio({
       return;
     }
     setBusy(true);
+    setConnectSetupRequired(false);
     try {
       const d = await api(
         "connect/" + (dashboard ? "dashboard" : "onboard"),
@@ -154,6 +156,9 @@ export function Studio({
       );
       window.location.assign(d.url);
     } catch (e) {
+      setConnectSetupRequired(
+        (e as Error & { code?: string }).code === "stripe_connect_setup_required",
+      );
       notify((e as Error).message);
     } finally {
       setBusy(false);
@@ -215,6 +220,22 @@ export function Studio({
         ),
       )}
       {t(error && <Notice error>{t(error)}</Notice>)}
+      {connectSetupRequired && (
+        <Notice error>
+          <p>{t("L’activation Stripe Connect du marketplace doit être terminée avant de configurer les vendeurs.")}</p>
+          {session.isAdmin && (
+            <a
+              className="button secondary small"
+              href="https://dashboard.stripe.com/connect"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t("Activer Stripe Connect")}
+              <ArrowUpRight size={14} />
+            </a>
+          )}
+        </Notice>
+      )}
       <div className="metric-grid">
         <Metric
           icon={Wallet}

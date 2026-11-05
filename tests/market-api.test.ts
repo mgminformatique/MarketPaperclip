@@ -407,6 +407,24 @@ function checkoutNetwork(opts: {
   return { state, calls };
 }
 
+test("A platform that has not activated Connect receives an actionable setup error without leaking Stripe details", async () => {
+  const calls = network((call) => {
+    if (call.url.pathname === "/rest/v1/seller_accounts") return Response.json([]);
+    if (call.url.origin === "https://api.stripe.com" && call.url.pathname === "/v1/accounts")
+      return Response.json({ error: { type: "invalid_request_error", message: "You can only create new accounts if you've signed up for Connect, which you can do at https://dashboard.stripe.com/connect" } }, { status: 400 });
+  });
+  const response = await marketApi(
+    request("connect/onboard", "POST", {}, { cookie: sessionCookie() }),
+    launched,
+  );
+  assert.equal(response.status, 503);
+  const data = await response.json() as { code: string; error: string };
+  assert.equal(data.code, "stripe_connect_setup_required");
+  assert.match(data.error, /Stripe Connect/);
+  assert.ok(!JSON.stringify(data).includes("dashboard.stripe.com"));
+  assert.ok(!calls.some((call) => call.url.pathname === "/rest/v1/seller_accounts" && call.method !== "GET"));
+});
+
 test("Unavailable sellers never create pending orders or Stripe Checkout sessions", async () => {
   for (const sellerState of ["missing", "restricted"] as const) {
     const { state } = checkoutNetwork({ sellerState });

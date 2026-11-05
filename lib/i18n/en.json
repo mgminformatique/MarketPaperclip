@@ -178,6 +178,8 @@
   "Modules d’agents en 3D": "3D agent modules",
   "CAD · paiement unique": "CAD · one-time payment",
   "CAD / paiement unique": "CAD / one-time payment",
+  "L’activation Stripe Connect du marketplace doit être terminée avant de configurer les vendeurs.": "The marketplace must finish activating Stripe Connect before sellers can set up payments.",
+  "Activer Stripe Connect": "Activate Stripe Connect",
   "Gratuit": "Free",
   "Licence incluse": "License included",
   "Aperçu": "Preview",
