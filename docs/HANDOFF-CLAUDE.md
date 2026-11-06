@@ -1,5 +1,13 @@
 # MarketPaperclip — Handoff
 
+## Carrousel du Feed plus compact — 5 novembre 2026
+
+À la demande du propriétaire, le conteneur défilant est réduit sur ordinateur et mobile. Modification CSS seulement (`app/market.css`) : hauteur minimale de la fiche de 660 px à 480 px, retrait de la hauteur imposée par le viewport, espacements et titres plus compacts; visuel mobile de 270 px à 190 px et retrait du minimum de 85svh. La largeur d'un modèle, le contenu complet, les prix et les commandes du défilement sont conservés.
+
+Code **`82d4c89`** sur `main`, déploiement Netlify **`6aed3f2a4b0953737a2f5f76`**, `ready`, publié le **6 novembre à 02 h 45 UTC** (5 novembre à 21 h 45 HE), aucune planification. URL : **https://marketpaperclip.com/feed?demo=1&lang=fr**.
+
+Validation : build et CI **42152265098** réussis; page, JavaScript et feuille CSS publiés répondent 200, règles compactes confirmées dans le CSS servi. Le parcours de la démo FR sur le client compilé publié passe (arrivées, historique, aperçu, filtres, sortie et remise à zéro, sans écriture serveur). Le navigateur visuel n'est pas disponible dans cette session; le rendu sur ordinateur/mobile n'a pas été vérifié visuellement.
+
 ## Modèles complets et défilement continu — 5 novembre 2026 au soir
 
 Publié sur **https://marketpaperclip.com/feed?demo=1&lang=fr**. Code du Feed **`a7805f8`**, correction du paquet Netlify **`784b770`**, tous deux sur `main`. Déploiement final **`6aed37aa8c5801be7e01f89e`**, `ready`, publié le **6 novembre à 02 h 13 UTC** (5 novembre à 21 h 13 HE), aucune planification.
