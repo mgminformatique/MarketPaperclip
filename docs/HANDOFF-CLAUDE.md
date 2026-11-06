@@ -1,5 +1,17 @@
 # MarketPaperclip — Handoff
 
+## Buy now directement depuis le Feed — 5 novembre 2026
+
+Publié sur **https://marketpaperclip.com/feed?lang=fr**. Source **`8181945`** sur `main`, déploiement Netlify **`6aed426d287f147f4a7d51c7`**, `ready`, publié le **6 novembre à 02 h 59 UTC** (5 novembre à 21 h 59 HE), aucune planification.
+
+Le bouton **Buy now** remplace la commande de fiche dans le bloc prix, avec le tarif actuel du modèle. Licence et conditions à accepter sur place, connexion si nécessaire, puis `POST /api/checkout` et redirection vers Stripe Checkout sans passer par la page produit. Le clic sélectionne et fige le modèle; le montant vient toujours du serveur, jamais de la carte d'événement. État de chargement, verrou contre le double-clic, erreur explicite et nouvel essai. Le propriétaire voit Votre création; un modèle gratuit utilise Obtenir gratuitement et rejoint les acquisitions. Prix masqués et modèles sans UUID/prix ne peuvent pas démarrer un achat; copies décoratives désactivées. La projection publique du Feed ajoute seulement les UUID publics `id` et `seller_id`; aucun fichier ou acheteur privé exposé. Aucun changement du calcul des paiements, du webhook ou du schéma de base.
+
+Dans **https://marketpaperclip.com/feed?demo=1&lang=fr**, **Buy now · DÉMO** ouvre l'aperçu fictif et indique **Modèle fictif — aucun paiement.** Aucun checkout ou débit n'est associé à NEXUS PRIME ou aux autres exemples.
+
+**Vente réelle toujours bloquée :** le contrôle en lecture seule de `seller_accounts` confirme qu'aucun compte Connect n'est enregistré pour le vendeur Paperclip Test (`3e76f7a7-04ad-4db3-9fd6-6d124fc1df7d`). La configuration publique autorise les paiements, mais ne remplace pas cette activation. L'API checkout refuse un vendeur non connecté avant de créer une commande. L'accès Stripe CLI n'a pas permis de contrôler la plateforme pendant cette session; la clé de production est masquée à la lecture Netlify et n'a pas été exposée. Ne pas affirmer que l'inscription de la plateforme est maintenant résolue, ni qu'une vente a eu lieu. Aucune transaction réelle ni nouveau compte vendeur n'a été créé.
+
+Validation : TypeScript, **129 tests**, build et CI **42153674487** réussis; **60 contrôles publics** après publication. Client compilé publié contrôlé en FR/EN pour Buy now : consentement explicite, UUID sans montant client, erreur vendeur, reprise, requête unique en cours, intention de redirection Stripe, connexion visiteur et démo sans checkout. Propriétaire, gratuit, démo EN, historique et prix masqués aussi contrôlés localement. Les POST des tests sont interceptés en mémoire, sans écriture sur le serveur; JSDOM signale l'intention de navigation sans suivre Stripe et ne prouve pas de paiement. L'API réelle retourne une annonce publiée et zéro vente payée, sans identifiant fictif. Aucun navigateur visuel disponible; rendu ordinateur/mobile et paiement réel restent non vérifiés.
+
 ## Carrousel du Feed plus compact — 5 novembre 2026
 
 À la demande du propriétaire, le conteneur défilant est réduit sur ordinateur et mobile. Modification CSS seulement (`app/market.css`) : hauteur minimale de la fiche de 660 px à 480 px, retrait de la hauteur imposée par le viewport, espacements et titres plus compacts; visuel mobile de 270 px à 190 px et retrait du minimum de 85svh. La largeur d'un modèle, le contenu complet, les prix et les commandes du défilement sont conservés.
