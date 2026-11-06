@@ -8,7 +8,7 @@
 // it never signs in a real user or sends a write to production.
 // profileFixture:"owner"|"visitor"|"anonymous" checks profile editing and model
 // publication using local response fixtures; never writes to the live API.
-// feedFixture:"full"|"single"|"two"|"hidden-prices"|"reduced"|"demo" checks the real
+// feedFixture:"full"|"single"|"two"|"hidden-prices"|"reduced"|"demo"|"buy"|"buy-free"|"buy-owner"|"buy-anonymous" checks the real
 // carousel with isolated responses and controlled timers, without API writes.
 import assert from "node:assert/strict";
 import vm from "node:vm";

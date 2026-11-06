@@ -1005,5 +1005,12 @@
   "Scénario de test : décrire un projet, choisir la stack, valider le plan de construction.": "Test scenario: describe a project, choose the stack, approve the build plan.",
   "Prérequis et installation": "Requirements and setup",
   "Prérequis": "Requirements",
-  "agent": "agent"
+  "agent": "agent",
+  "du produit": "of the product",
+  "et les ": "and the ",
+  "Ouverture de Stripe…": "Opening Stripe…",
+  "Obtenir gratuitement": "Get for free",
+  "Modèle fictif — aucun paiement.": "Fictional model — no payment.",
+  "Retrouvez le modèle dans vos acquisitions.": "Find the model in your library.",
+  "Paiement sécurisé sur Stripe · CAD": "Secure payment on Stripe · CAD"
 }

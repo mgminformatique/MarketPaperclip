@@ -10,6 +10,7 @@ import {
   type MouseEvent,
 } from "react";
 import { useFeedMarquee } from "./use-feed-marquee";
+import { FeedBuyNow, type FeedBuyer } from "./feed-buy-now";
 import { money } from "../lib/market/model";
 import { useSearchParams } from "next/navigation";
 import {
@@ -253,13 +254,15 @@ function useFeedData(
   };
 }
 
-export function MarketFeed() {
+export function MarketFeed(buyer: FeedBuyer) {
   const query = useSearchParams();
   const demo = FEED_DEMO_ENABLED && query.get("demo") === "1";
-  return <MarketFeedCarousel key={demo ? "demo" : "live"} demo={demo} />;
+  return (
+    <MarketFeedCarousel key={demo ? "demo" : "live"} demo={demo} {...buyer} />
+  );
 }
 
-function MarketFeedCarousel({ demo }: { demo: boolean }) {
+function MarketFeedCarousel({ demo, ...buyer }: FeedBuyer & { demo: boolean }) {
   const { t, locale } = useI18n();
   const prices = usePricesVisible();
   const demoSource = useMemo(() => (demo ? createFeedDemo() : null), [demo]);
@@ -763,27 +766,25 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
                             {t("Découvrez cette création")}
                           </span>
                         )}
-                        <Link
-                          href={
-                            demo
-                              ? "/feed?demo=1"
-                              : "/agents/" + event.product.slug
-                          }
-                          onClick={(click) => inspect(event, click)}
-                          className="mk-feed-open"
-                          tabIndex={
+                        <FeedBuyNow
+                          product={event.product}
+                          demo={demo}
+                          inactive={
                             index >= data.events.length ||
                             data.events[selected]?.id !== event.id
-                              ? -1
-                              : undefined
                           }
-                          aria-label={
-                            t("Voir la fiche") + " : " + event.product.title
-                          }
-                        >
-                          {t(demo ? "Découvrir le concept" : "Voir la fiche")}{" "}
-                          <ArrowUpRight size={18} />
-                        </Link>
+                          duplicate={index >= data.events.length}
+                          {...buyer}
+                          onPause={() => {
+                            pause();
+                            goTo(
+                              data.events.findIndex(
+                                (item) => item.id === event.id,
+                              ),
+                            );
+                          }}
+                          onDemo={() => setPreview(event)}
+                        />
                       </div>
                     </div>
                     <Link

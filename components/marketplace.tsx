@@ -495,7 +495,7 @@ export default function Marketplace({
                 initial={initial?.product ?? undefined}
               />
             ) : pathname === "/feed" ? (
-              <MarketFeed />
+              <MarketFeed userId={session.user?.id ?? null} onSignIn={signIn} />
             ) : pathname === "/market" ? (
               <MarketPage favorites={favorites} save={save} />
             ) : pathname === "/creators" ? (

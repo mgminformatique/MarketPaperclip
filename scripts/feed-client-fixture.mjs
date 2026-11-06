@@ -1,17 +1,24 @@
-// Isolated client checks against the real built carousel. No API writes.
+// Isolated client checks against the real built carousel. Simulated checkout
+// requests are handled here and can never reach the remote API.
 import assert from 'node:assert/strict';
 
-const event = id => ({ id, kind:'listed', amount_cents:100 * id, previous_cents:null, created_at:`2026-11-05T12:00:${String(id).padStart(2,'0')}Z`, product:{slug:'feed-model-'+id,title:'Feed model '+id,kind:'agent',engine:'Claude',cover_url:null,tagline:'A complete fixture model',description:'Public description for this full-page model.',version:'1.0.0',license:'MIT',agent_count:1,tags:['Research'],requirements:'Personal API key.',setup:'Configure your key and open the agent.'},seller:{username:'fixture-creator',display_name:'Fixture Creator'} });
+const event = id => ({ id, kind:'listed', amount_cents:100 * id, previous_cents:null, created_at:`2026-11-05T12:00:${String(id).padStart(2,'0')}Z`, product:{id:'aaaaaaaa-aaaa-4aaa-8aaa-'+String(id).padStart(12,'0'),seller_id:'22222222-2222-4222-8222-222222222222',price_cents:100*id,slug:'feed-model-'+id,title:'Feed model '+id,kind:'agent',engine:'Claude',cover_url:null,tagline:'A complete fixture model',description:'Public description for this full-page model.',version:'1.0.0',license:'MIT',agent_count:1,tags:['Research'],requirements:'Personal API key.',setup:'Configure your key and open the agent.'},seller:{username:'fixture-creator',display_name:'Fixture Creator'} });
 export function createFeedFixture(mode) {
-  assert.ok(['full','reduced','hidden-prices','two','single','demo'].includes(mode));
+  assert.ok(['full','reduced','hidden-prices','two','single','demo','buy','buy-owner','buy-anonymous','buy-free'].includes(mode));
   const records = mode === 'single' ? [event(6)] : mode === 'two' ? [event(5),event(6)] : [event(4),event(5),event(6)];
-  const requests = [];
+  const requests = [], purchases = [];
+  let rejectPayment = true, holdPayment = false, releasePayment;
+  if(mode === 'buy-free') records[records.length-1].product.price_cents = 0;
   const intervals = new Map(), timeouts = new Map();
   let timerId = 100000, now = Date.now(), motionTime = 0, failNext = false;
   const frames = new Map();
   let allowReal = mode !== 'demo';
   const fixture = {
-    mode, requests, initialPath:mode === 'demo' ? '/feed?demo=1' : '/feed',
+    mode, requests, purchases,
+    allowPayment() { rejectPayment = false; },
+    holdPayment() { holdPayment = true; },
+    releasePayment() { holdPayment = false; releasePayment?.(); },
+    initialPath:mode === 'demo' ? '/feed?demo=1' : '/feed',
     allowReal() { allowReal=true; },
     blockReal() { allowReal=false; },
     addArrivals() { records.push(event(7),event(8)); },
@@ -60,10 +67,22 @@ export function createFeedFixture(mode) {
     },
     fetch(url,options={}) {
       if (!url.pathname.startsWith('/api/')) return;
-      assert.equal(options.method || 'GET','GET','Feed checks never write data');
       const path=url.pathname.slice(5);
-      if(path==='me')return Response.json({user:null});
-      if(path==='config')return Response.json({accounts:true,payments:false,demo:false,github:false,google:false,prices:mode!=='hidden-prices',feeBps:1500});
+      if(path==='checkout') {
+        assert.ok(['buy','buy-free'].includes(mode),'Only the isolated purchase fixture can submit checkout');
+        assert.equal(options.method,'POST');
+        const body=JSON.parse(options.body); purchases.push(body);
+        assert.deepEqual(Object.keys(body).sort(),['license_accepted','product_id']);
+        assert.equal(body.license_accepted,true);
+        assert.equal(body.product_id,records.at(-1).product.id);
+        if(rejectPayment) return Response.json({error:mode==='buy-free'?'Les achats ouvriront au lancement du marketplace.':'Ce vendeur doit activer ses paiements.'},{status:mode==='buy-free'?503:409});
+        const response=()=>Response.json({url:mode==='buy-free'?'/library':'https://checkout.stripe.com/c/pay/cs_test_feed_fixture'});
+        return holdPayment ? new Promise(resolve=>{releasePayment=()=>resolve(response());}) : response();
+      }
+      assert.equal(options.method || 'GET','GET','No fixture write can reach the actual server');
+      if(path==='me')return Response.json({user: ['buy','buy-free','buy-owner'].includes(mode) ? {id:mode==='buy-owner'?'22222222-2222-4222-8222-222222222222':'11111111-1111-4111-8111-111111111111',email:'buyer@example.test'} : null});
+      if(path==='favorites')return Response.json({ids:[]});
+      if(path==='config')return Response.json({accounts:true,payments:true,launched:true,demo:false,github:false,google:false,prices:mode!=='hidden-prices',feeBps:1500});
       if(path==='market/feed') {
         assert.ok(allowReal,'A demo must never request genuine market events');
         requests.push(url.search);
@@ -87,6 +106,51 @@ export async function checkFeedClient({w,fixture,until,click,errors,locale}) {
   const position=()=>doc.querySelector('.mk-feed-position strong')?.textContent;
   const ids=()=>new Set([...doc.querySelectorAll('.mk-feed-slide')].map(node=>node.dataset.eventId));
   const button=label=>doc.querySelector(`[aria-label="${label}"]`);
+  if(['buy','buy-owner','buy-anonymous','buy-free'].includes(fixture.mode)) {
+    await until(()=>ids().size===3&&position()==='03','purchase-ready Feed');
+    const card=()=>doc.querySelector('.mk-feed-slide.is-selected');
+    if(fixture.mode==='buy-owner') {
+      await until(()=>card().querySelector('.mk-feed-buy-own'),'owner state');
+      assert.equal(card().querySelector('.mk-feed-buy-button'),null);
+      assert.equal(fixture.purchases.length,0);
+      assert.deepEqual(errors,[]);console.log('PASS creator cannot buy their own Feed model');return;
+    }
+    const buy=()=>card().querySelector('.mk-feed-buy-button');
+    if(fixture.mode==='buy-anonymous') {
+      await until(()=>buy()&&!buy().disabled,'anonymous buy action');
+      const neighbor=doc.querySelector('.mk-feed-slide:not(.is-selected) .mk-feed-buy-button:not(:disabled)');
+      assert.ok(neighbor,'A model entering from the right remains clickable');
+      click(neighbor);
+      await until(()=>doc.querySelector('.auth-logo')&&position()==='01','select the clicked model and sign in before purchase');
+      assert.equal(fixture.purchases.length,0);
+      assert.deepEqual(errors,[]);console.log('PASS anonymous Buy now opens sign-in without a checkout request');return;
+    }
+    // Wait for /me to reach the component before checking licence enforcement.
+    await until(()=>buy()?.disabled,'licence required before checkout');
+    assert.equal(fixture.purchases.length,0);
+    click(card().querySelector('.mk-feed-buy-license input'));
+    await until(()=>!buy().disabled,'explicit licence acceptance');
+    click(buy());
+    await until(()=>card().querySelector('.notice[role="alert"]'),'checkout availability error');
+    assert.equal(fixture.purchases.length,1);
+    assert.equal(w.location.pathname,'/feed');
+    assert.ok(!buy().disabled,'A failed checkout is retryable');
+    fixture.allowPayment();fixture.holdPayment();
+    click(buy()); click(buy());
+    await until(()=>buy().getAttribute('aria-busy')==='true','checkout in flight');
+    assert.equal(fixture.purchases.length,2,'A repeated click cannot create a second checkout');
+    assert.equal(buy().disabled,true);
+    fixture.releasePayment();
+    // JSDOM cannot follow a cross-document location.assign. This one expected
+    // navigation signal proves the success branch requested the Stripe/library
+    // redirect; it does not claim a browser navigation or real payment occurred.
+    await until(()=>errors.some(error=>/Not implemented.*navigation/i.test(error)),'successful checkout requests navigation');
+    const navigation=errors.filter(error=>/Not implemented.*navigation/i.test(error));
+    assert.equal(navigation.length,1);
+    assert.deepEqual(errors.filter(error=>!/Not implemented.*navigation/i.test(error)),[]);
+    assert.equal(fixture.purchases.length,2);
+    console.log(`PASS Feed ${fixture.mode==='buy-free'?'free acquisition':'Buy now to Stripe'}: licence, server-priced UUID, availability error, retry, single in-flight request and redirect intent (${locale}; fixture only, no real payment)`);return;
+  }
   if(fixture.mode==='demo') {
     await until(()=>doc.querySelector('.mk-feed-demo')&&ids().size===6&&position()==='06','temporary demo carousel');
     assert.equal(fixture.requests.length,0,'The demo has no live feed requests');
@@ -99,6 +163,15 @@ export async function checkFeedClient({w,fixture,until,click,errors,locale}) {
     assert.match(hero.querySelector('.mk-feed-specs').textContent,/12/);
     assert.ok(hero.querySelector('.mk-feed-price'));
     assert.ok(hero.querySelector('.mk-feed-details'));
+    const demoBuy=hero.querySelector('.mk-feed-buy-button');
+    assert.match(demoBuy.textContent,/Buy now/);
+    assert.equal(hero.querySelector('.mk-feed-buy-license'),null);
+    click(demoBuy);
+    await until(()=>doc.querySelector('.mk-feed-demo-preview'),'demo Buy now never charges');
+    assert.equal(fixture.purchases.length,0);
+    assert.equal(fixture.requests.length,0);
+    click(doc.querySelector('.mk-feed-demo-preview .modal-close'));
+    await until(()=>!doc.querySelector('.mk-feed-demo-preview'),'close fictitious purchase preview');
     assert.ok([...doc.querySelectorAll('.mk-feed-slide')].every(card=>card.querySelector('.mk-feed-demo-badge')));
     assert.ok([...ids()].every(id=>Number(id)>800000000));
     click(doc.querySelector('.mk-feed-demo-add'));
@@ -142,6 +215,7 @@ export async function checkFeedClient({w,fixture,until,click,errors,locale}) {
   assert.equal(doc.querySelector('.mk-feed .mk-feed-play').getAttribute('aria-pressed'),fixture.mode==='reduced'?'false':'true');
   if(fixture.mode==='hidden-prices') {
     assert.equal(doc.querySelector('.mk-feed-price'),null);
+    assert.equal(doc.querySelector('.mk-feed-buy-button'),null);
     assert.ok(doc.querySelector('.mk-feed-price-hidden'));
   } else assert.ok(doc.querySelector('.mk-feed-price'));
   if(fixture.mode==='single') {

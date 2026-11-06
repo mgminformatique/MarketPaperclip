@@ -192,7 +192,7 @@ test("Trending keeps the database rank and drops products that are no longer pub
 
 const feedEvent = (id: number, kind: MarketEvent["kind"] = "listed", amount = 100): MarketEvent => ({
   id, kind, amount_cents: amount, previous_cents: null, created_at: "2026-11-05T12:00:00Z",
-  product: { slug: "public-model", title: "Public model", kind: "agent", engine: "Claude", cover_url: null },
+  product: { id: productId, seller_id: seller, slug: "public-model", title: "Public model", kind: "agent", engine: "Claude", cover_url: null },
   seller: { username: "creator", display_name: "Creator" },
 });
 test("Feed stays honest when no database is configured", async () => {
@@ -223,7 +223,7 @@ test("Feed exposes the complete public model and excludes private package fields
   const body: any = await response.json();
   assert.deepEqual(body.events[0].product, product);
   const select = calls.find(call => call.url.pathname === "/rest/v1/market_events")!.url.searchParams.get("select")!;
-  for (const field of ["description", "tagline", "requirements", "setup", "license", "version", "agent_count", "tags", "price_cents"]) assert.ok(select.includes(field));
+  for (const field of ["id", "seller_id", "description", "tagline", "requirements", "setup", "license", "version", "agent_count", "tags", "price_cents"]) assert.ok(select.includes(field));
   assert.ok(!select.includes("product_files") && !select.includes("storage_path"));
 });
 test("Feed history uses an exclusive cursor and listing filter", async () => {

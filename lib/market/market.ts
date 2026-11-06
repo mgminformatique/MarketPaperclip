@@ -72,6 +72,8 @@ export type MarketEvent = {
     engine: string;
     cover_url: string | null;
     // Public listing details; older activity RPCs may omit these fields.
+    id?: string;
+    seller_id?: string;
     tagline?: string;
     description?: string;
     requirements?: string;
