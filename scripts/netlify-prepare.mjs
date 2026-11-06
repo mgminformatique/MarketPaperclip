@@ -58,6 +58,10 @@ const targets = {
   },
 };
 
+// Netlify serve/deploy caches bundled ZIPs and their manifest here. A later
+// framework build changes hashed browser assets, so reusing that bundle would
+// serve HTML pointing at the previous build's missing JavaScript chunks.
+await rm(path.join(root, ".netlify/functions"), { recursive: true, force: true });
 await rm(functions, { recursive: true, force: true });
 for (const [name, config] of Object.entries(targets)) {
   const target = path.join(functions, name);
