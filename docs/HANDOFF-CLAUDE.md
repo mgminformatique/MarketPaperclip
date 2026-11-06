@@ -1,5 +1,17 @@
 # MarketPaperclip — Handoff
 
+## Exemple temporaire du Feed — 5 novembre 2026 au soir
+
+À la demande du propriétaire, une démonstration amovible est publiée sur **https://marketpaperclip.com/feed?demo=1&lang=fr**. Code **`4932963`** sur `main`, déploiement Netlify **`6aed2fc9f8bec426be5a05e8`**, état `ready`, publié le **6 novembre à 01 h 39 UTC** (5 novembre à 20 h 39 HE), aucune planification.
+
+La page affiche MODE DÉMO — VENTES FICTIVES et TEST sur chaque carte. Seize exemples illustrés sont disponibles, six au départ dans le carrousel; huit ventes test arrivent ensuite automatiquement toutes les quatre secondes. Le bouton Ajouter une vente test déclenche une arrivée à la demande. Les liens des exemples ouvrent un aperçu local, sans achat. Revenir au Feed réel quitte la simulation; une nouvelle ouverture de la démo remet son scénario à zéro.
+
+**Aucune vente, commande, annonce, statistique ou donnée Stripe n'a été créée.** Le scénario est contenu dans la mémoire de la vue et ne lit pas le véritable endpoint du Feed. La page `/feed` ordinaire continue d'utiliser les événements réels. Le contrôle après publication retrouve une annonce réelle et zéro vente payée dans l'API, sans identifiant de démonstration.
+
+**Retrait après les essais :** passer `FEED_DEMO_ENABLED` à `false` dans `lib/market/feed-demo.ts`, puis déployer. Le bouton disparaît et le paramètre `demo=1` ne déclenche plus la simulation. Aucune ligne en base à nettoyer. Ne pas retirer l'exemple avant la demande du propriétaire.
+
+Validation : TypeScript, **128 tests**, build et CI GitHub **42145213334** réussis, **60 contrôles publics** après déploiement. Parcours du client compilé publié FR/EN : badges, ajout manuel et automatique, historique, aperçu, filtres, absence de lecture du Feed réel pendant la démo, sortie propre et remise à zéro. Le Feed réel est aussi contrôlé sur le build local; les quatre images publiques répondent 200. Vérification visuelle desktop/mobile indisponible, accès au navigateur de l'opérateur absent. Voir [MARKET.md](MARKET.md).
+
 ## Feed interactif — production du 5 novembre 2026 au soir
 
 Code **`5c57d17`** sur `main`, déploiement Netlify **`6aed2748dbb5f99aa0f9cedb`**, état `ready`, publié le **6 novembre à 01 h 03 UTC** (5 novembre à 20 h 03 HE). Page **https://marketpaperclip.com/feed**, accessible depuis la navigation et le libellé EN DIRECT de la banderole d'Explore. Le déploiement contient aussi les profils livrés précédemment; aucune migration ni nouvelle planification.
