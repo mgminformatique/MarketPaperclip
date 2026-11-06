@@ -1,13 +1,14 @@
 // Isolated client checks against the real built carousel. No API writes.
 import assert from 'node:assert/strict';
 
-const event = id => ({ id, kind:'listed', amount_cents:100 * id, previous_cents:null, created_at:`2026-11-05T12:00:${String(id).padStart(2,'0')}Z`, product:{slug:'feed-model-'+id,title:'Feed model '+id,kind:'agent',engine:'Claude',cover_url:null},seller:{username:'fixture-creator',display_name:'Fixture Creator'} });
+const event = id => ({ id, kind:'listed', amount_cents:100 * id, previous_cents:null, created_at:`2026-11-05T12:00:${String(id).padStart(2,'0')}Z`, product:{slug:'feed-model-'+id,title:'Feed model '+id,kind:'agent',engine:'Claude',cover_url:null,tagline:'A complete fixture model',description:'Public description for this full-page model.',version:'1.0.0',license:'MIT',agent_count:1,tags:['Research'],requirements:'Personal API key.',setup:'Configure your key and open the agent.'},seller:{username:'fixture-creator',display_name:'Fixture Creator'} });
 export function createFeedFixture(mode) {
   assert.ok(['full','reduced','hidden-prices','two','single','demo'].includes(mode));
   const records = mode === 'single' ? [event(6)] : mode === 'two' ? [event(5),event(6)] : [event(4),event(5),event(6)];
   const requests = [];
   const intervals = new Map(), timeouts = new Map();
-  let timerId = 100000, now = Date.now(), failNext = false;
+  let timerId = 100000, now = Date.now(), motionTime = 0, failNext = false;
+  const frames = new Map();
   let allowReal = mode !== 'demo';
   const fixture = {
     mode, requests, initialPath:mode === 'demo' ? '/feed?demo=1' : '/feed',
@@ -23,9 +24,22 @@ export function createFeedFixture(mode) {
       await entry[1].callback();
     },
     arrive() { const timer = [...intervals.values()].find(value => value.delay === 1100); assert.ok(timer); timer.callback(); },
-    playTick() { now += 6000; const timer = [...intervals.values()].find(value => value.delay === 5000); if (timer) timer.callback(); return !!timer; },
+    motion(ms = 28064) {
+      let ran = false;
+      for (let elapsed = 0; elapsed < ms; elapsed += 64) {
+        const delta = Math.min(64, ms - elapsed);
+        motionTime += delta; now += delta;
+        const pending = [...frames.values()]; frames.clear();
+        for (const callback of pending) { ran = true; callback(motionTime); }
+      }
+      return ran;
+    },
+    playTick() { return this.motion(); },
     install(w) {
       w.Date.now = () => now;
+      w.performance.now = () => motionTime;
+      w.requestAnimationFrame = callback => { const id=timerId++; frames.set(id,callback); return id; };
+      w.cancelAnimationFrame = id => frames.delete(id);
       const setInterval = w.setInterval.bind(w), clearInterval = w.clearInterval.bind(w);
       const setTimeout = w.setTimeout.bind(w), clearTimeout = w.clearTimeout.bind(w);
       w.setInterval = (callback,delay,...args) => {
@@ -41,23 +55,8 @@ export function createFeedFixture(mode) {
       w.matchMedia = media => ({matches:mode === 'reduced' && media.includes('prefers-reduced-motion'),media,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){}});
       w.ResizeObserver = class { observe(){} unobserve(){} disconnect(){} };
       w.IntersectionObserver = class { observe(){} unobserve(){} disconnect(){} takeRecords(){return [];} };
-      // JSDOM has no layout engine. Supply fixed carousel geometry, leaving
-      // Embla itself, its event handlers and its animations unmodified.
-      for (const [property,measure] of Object.entries({
-        offsetWidth:node => node.classList.contains('mk-feed-slide') ? 900 : 1000,
-        offsetHeight:() => 400,
-        offsetLeft:node => node.classList.contains('mk-feed-slide') ? [...node.parentElement.children].indexOf(node)*900 : 0,
-        offsetTop:() => 0,
-      })) Object.defineProperty(w.HTMLElement.prototype,property,{configurable:true,get(){return measure(this);}});
-      const style = w.getComputedStyle.bind(w);
-      w.getComputedStyle = node => {
-        const result=style(node);
-        if (!node.classList.contains('mk-feed-slide')) return result;
-        return new Proxy(result,{get(target,key){
-          if(key==='getPropertyValue')return name=>target.getPropertyValue(name)||(/^margin-/.test(name)?'0px':'');
-          const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;
-        }});
-      };
+      // Motion is viewport-relative; no layout geometry or browser engine is
+      // faked. Advance real animation-frame callbacks with a controlled clock.
     },
     fetch(url,options={}) {
       if (!url.pathname.startsWith('/api/')) return;
@@ -92,6 +91,14 @@ export async function checkFeedClient({w,fixture,until,click,errors,locale}) {
     await until(()=>doc.querySelector('.mk-feed-demo')&&ids().size===6&&position()==='06','temporary demo carousel');
     assert.equal(fixture.requests.length,0,'The demo has no live feed requests');
     assert.ok(doc.querySelector('.mk-feed-demo-notice'));
+    const hero = doc.querySelector('.mk-feed-slide.is-selected');
+    assert.match(hero.querySelector('.mk-feed-title').textContent,/NEXUS PRIME/);
+    assert.ok(hero.querySelector('.mk-feed-art img').src.includes('nexus-prime-demo.webp'));
+    assert.ok(hero.querySelector('.mk-feed-description').textContent.length > 200);
+    assert.equal(hero.querySelectorAll('.mk-feed-features li').length,4);
+    assert.match(hero.querySelector('.mk-feed-specs').textContent,/12/);
+    assert.ok(hero.querySelector('.mk-feed-price'));
+    assert.ok(hero.querySelector('.mk-feed-details'));
     assert.ok([...doc.querySelectorAll('.mk-feed-slide')].every(card=>card.querySelector('.mk-feed-demo-badge')));
     assert.ok([...ids()].every(id=>Number(id)>800000000));
     click(doc.querySelector('.mk-feed-demo-add'));
@@ -138,14 +145,14 @@ export async function checkFeedClient({w,fixture,until,click,errors,locale}) {
     assert.ok(doc.querySelector('.mk-feed-price-hidden'));
   } else assert.ok(doc.querySelector('.mk-feed-price'));
   if(fixture.mode==='single') {
-    assert.equal(doc.querySelectorAll('.mk-feed-slide').length,3);
+    assert.equal(doc.querySelectorAll('.mk-feed-slide').length,2);
     const track=doc.querySelector('.mk-feed-track');const prior=track.style.transform;
     fixture.playTick();await until(()=>track.style.transform!==prior,'single-event ticker motion');
     assert.equal(position(),'01');assert.equal(ids().size,1);assert.deepEqual(errors,[]);
     console.log('PASS a single real event scrolls like the ticker without inventing another event');return;
   }
   if(fixture.mode==='two') {
-    assert.equal(doc.querySelectorAll('.mk-feed-slide').length,4,'Visual copies keep a two-event carousel looping');
+    assert.equal(doc.querySelectorAll('.mk-feed-slide').length,3,'One trailing visual copy keeps the marquee seamless');
     const prior=position();fixture.playTick();
     await until(()=>position()!==prior,'two-event forward loop');
     assert.equal(ids().size,2,'Copies never create extra market events');
@@ -159,8 +166,19 @@ export async function checkFeedClient({w,fixture,until,click,errors,locale}) {
   }
   const viewport=doc.querySelector('.mk-feed-viewport');
   const before=position();
+  const track=doc.querySelector('.mk-feed-track');
+  const start=track.style.transform;
+  assert.ok(fixture.motion(1000));
+  const first=track.style.transform;
+  assert.notEqual(first,start,'The model moves during the first second without waiting for a slide timer');
+  assert.equal(position(),before,'A small continuous movement keeps the same event');
+  assert.ok(fixture.motion(1000));
+  assert.notEqual(track.style.transform,first,'Motion continues at intermediate positions');
+  const offset = value => Number(value.match(/translate3d\((-?[\d.]+)%/)[1]);
+  assert.ok(offset(first)<offset(start),'Motion always goes right to left');
+  assert.ok(Math.abs((offset(track.style.transform)-offset(first))-(offset(first)-offset(start)))<0.000001,'Equal elapsed times move equal distances');
   assert.ok(fixture.playTick());
-  await until(()=>position()!==before,'automatic forward carousel');
+  await until(()=>position()!==before,'continuous right-to-left marquee');
   click(button(locale==='fr'?'Événement précédent':'Previous event'));
   await until(()=>doc.querySelector('.mk-feed-play').getAttribute('aria-pressed')==='false','manual browsing pauses playback');
   const historyPosition=position();
@@ -176,13 +194,28 @@ export async function checkFeedClient({w,fixture,until,click,errors,locale}) {
   assert.equal(ids().size,5,'Overlapping polls must not duplicate cards');
   click(doc.querySelector('.mk-feed-return'));
   await until(()=>position()==='05'&&!doc.querySelector('.mk-feed-unread'),'return to newest arrival');
+  fixture.motion(1000);
+  const inFlight = track.style.transform;
+  const nextVisible = doc.querySelector('.mk-feed-slide.is-selected').nextElementSibling.dataset.eventId;
   fixture.addLiveArrival();await fixture.poll();fixture.arrive();
-  await until(()=>ids().size===6&&position()==='06','live arrival advances to the appended right-hand card');
+  await until(()=>ids().size===6,'new sale joins the rail');
+  assert.equal(position(),'05','An arrival never teleports over the current model');
+  assert.equal(track.style.transform,inFlight,'Arrivals preserve the exact in-flight position');
+  assert.equal(doc.querySelector('.mk-feed-slide.is-selected').nextElementSibling.dataset.eventId,nextVisible,'A partially visible next model is never replaced');
+  fixture.motion(56000);
+  await until(()=>position()==='06','queued sale enters from fully outside the right edge');
   assert.ok(doc.querySelector('.mk-feed-slide.is-selected[data-event-id="9"]'));
   viewport.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Home',bubbles:true,cancelable:true}));
   await until(()=>position()==='01','keyboard history navigation');
   viewport.dispatchEvent(new w.WheelEvent('wheel',{deltaX:120,bubbles:true,cancelable:true}));
   await until(()=>position()==='02','horizontal wheel navigation');
+  const gesture = (type,x) => {
+    const event=new w.Event(type,{bubbles:true,cancelable:true});
+    Object.defineProperties(event,{clientX:{value:x},pointerType:{value:'mouse'}});
+    viewport.dispatchEvent(event);
+  };
+  gesture('pointerdown',100); gesture('pointerup',500);
+  await until(()=>position()==='01','mouse swipe browses back');
   click(doc.querySelector('.mk-feed-older'));
   await until(()=>ids().size===9&&!doc.querySelector('.mk-feed-older'),'paginated older history');
   assert.ok(fixture.requests.some(query=>query.includes('before=4')));

@@ -71,6 +71,16 @@ export type MarketEvent = {
     kind: "agent" | "bundle";
     engine: string;
     cover_url: string | null;
+    // Public listing details; older activity RPCs may omit these fields.
+    tagline?: string;
+    description?: string;
+    requirements?: string;
+    setup?: string;
+    license?: string;
+    version?: string;
+    agent_count?: number;
+    tags?: string[];
+    price_cents?: number | null;
   };
   seller: { username: string; display_name: string };
 };

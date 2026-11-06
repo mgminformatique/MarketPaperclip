@@ -455,7 +455,7 @@ export async function marketApi(req: Request, c: Config) {
         // Only curated fields from currently public listings. No order,
         // purchaser, email, private offer or connected-account data is read.
         let records = admin(c).from("market_events").select(
-          "id,kind,amount_cents,previous_cents,created_at,product:products!market_events_product_id_fkey!inner(slug,title,kind,engine,cover_url),seller:profiles!market_events_seller_id_fkey(username,display_name)",
+          "id,kind,amount_cents,previous_cents,created_at,product:products!market_events_product_id_fkey!inner(slug,title,kind,engine,cover_url,tagline,description,requirements,setup,license,version,agent_count,tags,price_cents),seller:profiles!market_events_seller_id_fkey(username,display_name)",
         ).eq("product.status", "published").order("id", { ascending: !!query.after }).limit(query.limit + 1);
         if (query.before) records = records.lt("id", query.before);
         if (query.after) records = records.gt("id", query.after);
@@ -467,7 +467,12 @@ export async function marketApi(req: Request, c: Config) {
         const events = rows.slice(0, query.limit).map(event => ({
           id: event.id, kind: event.kind, amount_cents: event.amount_cents,
           previous_cents: event.previous_cents, created_at: event.created_at,
-          product: { slug: event.product.slug, title: event.product.title, kind: event.product.kind, engine: event.product.engine, cover_url: event.product.cover_url },
+          product: { slug: event.product.slug, title: event.product.title, kind: event.product.kind, engine: event.product.engine, cover_url: event.product.cover_url,
+            tagline: event.product.tagline, description: event.product.description,
+            requirements: event.product.requirements, setup: event.product.setup,
+            license: event.product.license, version: event.product.version,
+            agent_count: event.product.agent_count, tags: event.product.tags,
+            price_cents: event.product.price_cents },
           seller: { username: event.seller.username, display_name: event.seller.display_name },
         }));
         return ctx.json({ events, more: rows.length > query.limit,

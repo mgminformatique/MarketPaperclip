@@ -11,7 +11,6 @@ export type FeedPage = {
 export const FEED_PAGE_SIZE = 24;
 export const FEED_POLL_MS = 15000;
 export const FEED_ARRIVAL_MS = 1100;
-export const FEED_PLAY_MS = 5000;
 
 // Keep chronological positions stable when older pages or overlapping live
 // responses arrive. An event is a single market record, never a fake sale.

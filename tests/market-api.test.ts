@@ -216,6 +216,16 @@ test("Public feed reads published listings and explicitly whitelists event field
   assert.equal(query.get("limit"), "3");
   assert.ok(query.get("select")!.includes("!inner"));
 });
+test("Feed exposes the complete public model and excludes private package fields", async () => {
+  const product = { ...feedEvent(5).product, tagline: "Complete model", description: "A full public description.", requirements: "Node 22", setup: "Open and configure.", license: "MIT", version: "1.2.0", agent_count: 12, tags: ["Research"], price_cents: 24900 };
+  const calls = network(call => call.url.pathname === "/rest/v1/market_events" ? Response.json([{ ...feedEvent(5), product: { ...product, storage_path: "private.zip", product_files: [{ path: "secret.zip" }] } }]) : undefined);
+  const response = await marketApi(request("market/feed"), base);
+  const body: any = await response.json();
+  assert.deepEqual(body.events[0].product, product);
+  const select = calls.find(call => call.url.pathname === "/rest/v1/market_events")!.url.searchParams.get("select")!;
+  for (const field of ["description", "tagline", "requirements", "setup", "license", "version", "agent_count", "tags", "price_cents"]) assert.ok(select.includes(field));
+  assert.ok(!select.includes("product_files") && !select.includes("storage_path"));
+});
 test("Feed history uses an exclusive cursor and listing filter", async () => {
   const calls = network(call => call.url.pathname === "/rest/v1/market_events" ? Response.json([feedEvent(2)]) : undefined);
   const response = await marketApi(request("market/feed?before=3&filter=listings"), base);
@@ -263,6 +273,12 @@ test("Temporary demo has explicit sample identities and isolated cursor paginati
   const first = source.page({filter:"all"});
   assert.equal(first.demo, true);
   assert.equal(first.events.length, 6);
+  const model = first.events[0].product;
+  assert.ok(model.title.includes("NEXUS PRIME"));
+  assert.equal(model.agent_count,12);
+  assert.equal(model.price_cents,24900);
+  assert.ok(model.description!.length > 200 && model.tagline && model.version && model.license && model.requirements && model.setup);
+  assert.equal(model.tags!.length,4);
   assert.ok(first.more);
   assert.ok(first.events.every(event => event.id > FEED_DEMO_ID_BASE && event.product.title.includes("Démo") && event.seller.username.startsWith("demo-")));
   const second = source.page({filter:"all",before:first.oldest!});
@@ -294,6 +310,9 @@ test("Reloading the demo resets it and returned examples cannot mutate another v
   const source = createFeedDemo();
   const page = source.page({filter:"all"});
   const title = page.events[0].product.title;
+  const tag = page.events[0].product.tags![0];
+  page.events[0].product.tags![0] = "Changed externally";
+  assert.equal(source.page({filter:"all"}).events[0].product.tags![0],tag);
   page.events[0].product.title = "Changed outside the demo";
   assert.equal(source.page({filter:"all"}).events[0].product.title,title);
   source.addSale();

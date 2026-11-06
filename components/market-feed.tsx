@@ -9,7 +9,8 @@ import {
   useState,
   type MouseEvent,
 } from "react";
-import useEmblaCarousel from "embla-carousel-react";
+import { useFeedMarquee } from "./use-feed-marquee";
+import { money } from "../lib/market/model";
 import { useSearchParams } from "next/navigation";
 import {
   Activity,
@@ -26,6 +27,8 @@ import {
   Pause,
   Play,
   Plus,
+  Check,
+  Sparkles,
   Radio,
   RotateCcw,
   Tag,
@@ -44,7 +47,6 @@ import { timeAgo, type MarketEvent } from "../lib/market/market";
 import {
   FEED_ARRIVAL_MS,
   FEED_PAGE_SIZE,
-  FEED_PLAY_MS,
   FEED_POLL_MS,
   matchesFeedFilter,
   mergeFeedEvents,
@@ -267,51 +269,27 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
   const [hover, setHover] = useState(false);
   const [focused, setFocused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [selected, setSelected] = useState(0);
   const [unread, setUnread] = useState(0);
-  const currentId = useRef<number | null>(null);
-  const wanted = useRef<{
-    id: number;
-    previous?: number | null;
-    animate?: boolean;
-  } | null>(null);
+  const wanted = useRef<number | null>(null);
   const following = useRef(true);
-  following.current = playing && !hover && !focused;
-  const lastArrival = useRef(0);
+  const moving = playing && !hover && !focused && !preview && !reducedMotion;
+  following.current = moving;
   const pause = useCallback(() => setPlaying(false), []);
-  const [viewport, carousel] = useEmblaCarousel({
-    align: "center",
-    loop: true,
-    duration: reducedMotion ? 0 : 32,
-    watchSlides: false,
-  });
   const data = useFeedData(
     filter,
-    (event, previous) => {
-      lastArrival.current = Date.now();
-      if (following.current)
-        wanted.current = { id: event.id, previous, animate: true };
-      else setUnread((value) => value + 1);
+    () => {
+      if (!following.current) setUnread((value) => value + 1);
     },
     (id) => {
-      wanted.current = { id };
+      wanted.current = id;
     },
     demoSource,
   );
-  // Like the small ticker, a short feed uses visual copies for a seamless
-  // loop. Copies never count as events and are hidden from assistive technology.
-  const slides = useMemo(
-    () =>
-      data.events.length > 0 && data.events.length < 3
-        ? Array.from(
-            { length: Math.ceil(3 / data.events.length) },
-            () => data.events,
-          ).flat()
-        : data.events,
-    [data.events],
-  );
-  const eventsRef = useRef(slides);
-  eventsRef.current = slides;
+  const marquee = useFeedMarquee(data.events, moving, reducedMotion);
+  const { slides, selected, goTo } = marquee;
+  const viewport = useRef<HTMLDivElement>(null);
+  const pointerStart = useRef<number | null>(null);
+  const suppressClick = useRef(false);
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
     const apply = () => {
@@ -322,62 +300,24 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
     query.addEventListener("change", apply);
     return () => query.removeEventListener("change", apply);
   }, []);
-  useEffect(() => {
-    if (!carousel) return;
-    const select = () => {
-      const index = carousel.selectedScrollSnap();
-      setSelected(index % Math.max(1, data.events.length));
-      currentId.current = eventsRef.current[index]?.id ?? null;
-    };
-    carousel.on("select", select).on("pointerDown", pause);
-    return () => {
-      carousel.off("select", select).off("pointerDown", pause);
-    };
-  }, [carousel, pause, data.events.length]);
   useLayoutEffect(() => {
-    if (!carousel || !data.events.length) return;
-    const target = wanted.current;
-    const id = target?.previous ?? currentId.current ?? data.events.at(-1)?.id;
-    const index = slides.findIndex((event) => event.id === id);
-    carousel.reInit({ startIndex: Math.max(0, index) });
-    carousel.scrollTo(Math.max(0, index), true);
-    if (target) {
-      const destination = slides.findIndex((event) => event.id === target.id);
-      if (destination >= 0) {
-        // New records are appended to the right: scrollNext keeps the same
-        // right-to-left direction as Explore's ticker, even in a looping rail.
-        if (target.animate && destination === index + 1)
-          carousel.scrollNext(reducedMotion);
-        else carousel.scrollTo(destination, !target.animate || reducedMotion);
-      }
+    if (wanted.current === null) return;
+    const index = data.events.findIndex((event) => event.id === wanted.current);
+    if (index >= 0) {
+      goTo(index);
       wanted.current = null;
     }
-    const active = carousel.selectedScrollSnap();
-    currentId.current = slides[active]?.id ?? null;
-    setSelected(active % data.events.length);
-  }, [carousel, data.events, slides, reducedMotion]);
+  }, [data.events, goTo]);
+  const move = useCallback(
+    (direction: "previous" | "next") => {
+      pause();
+      goTo(selected + (direction === "next" ? 1 : -1));
+    },
+    [pause, goTo, selected],
+  );
   useEffect(() => {
-    if (!carousel || !playing || hover || focused || slides.length < 2) return;
-    const timer = setInterval(() => {
-      if (
-        !document.hidden &&
-        Date.now() - lastArrival.current > FEED_ARRIVAL_MS
-      )
-        carousel.scrollNext(reducedMotion);
-    }, FEED_PLAY_MS);
-    return () => clearInterval(timer);
-  }, [
-    carousel,
-    playing,
-    hover,
-    focused,
-    data.events.length,
-    slides.length,
-    reducedMotion,
-  ]);
-  useEffect(() => {
-    if (!carousel) return;
-    const element = carousel.rootNode();
+    const element = viewport.current;
+    if (!element) return;
     let lastWheel = 0;
     const wheel = (event: WheelEvent) => {
       const delta =
@@ -388,24 +328,17 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
             : 0;
       if (Math.abs(delta) < 5) return;
       event.preventDefault();
-      pause();
       if (Date.now() - lastWheel < 250) return;
       lastWheel = Date.now();
-      if (delta > 0) carousel.scrollNext();
-      else carousel.scrollPrev();
+      move(delta > 0 ? "next" : "previous");
     };
     element.addEventListener("wheel", wheel, { passive: false });
     return () => element.removeEventListener("wheel", wheel);
-  }, [carousel, pause]);
-  const move = (direction: "previous" | "next") => {
-    pause();
-    if (direction === "next") carousel?.scrollNext(reducedMotion);
-    else carousel?.scrollPrev(reducedMotion);
-  };
+  }, [move, data.loading, data.events.length]);
   const goLive = () => {
     setUnread(0);
-    setPlaying(true);
-    carousel?.scrollTo(Math.max(0, data.events.length - 1), reducedMotion);
+    goTo(data.events.length - 1);
+    setPlaying(!reducedMotion);
   };
   const older = async () => {
     pause();
@@ -413,10 +346,8 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
   };
   const chooseFilter = (value: FeedFilter) => {
     if (filter === value) return;
-    currentId.current = null;
     wanted.current = null;
     setUnread(0);
-    setSelected(0);
     setFilter(value);
   };
   const active = data.events[selected];
@@ -440,7 +371,7 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
             Feed<span>.</span>
           </h1>
           <p>
-            {t("La banderole du marché, en grand. Chaque arrivée a sa place.")}
+            {t("Un modèle, toute la scène. Le marché défile sous vos yeux.")}
           </p>
         </div>
         <div className="mk-feed-mode-actions">
@@ -520,7 +451,7 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
           className="button secondary small mk-feed-play"
           aria-pressed={playing}
           onClick={() => setPlaying((value) => !value)}
-          disabled={!data.events.length}
+          disabled={!data.events.length || reducedMotion}
         >
           {playing ? <Pause size={14} /> : <Play size={14} />}
           {t(playing ? "Pause" : "Lecture automatique")}
@@ -537,7 +468,7 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
       <div className="mk-feed-stage">
         <div className="mk-feed-stage-label">
           <Radio size={14} />
-          <span>{t("LE FIL DU MARCHÉ")}</span>
+          <span>{t("DROITE → GAUCHE · DÉFILEMENT CONTINU")}</span>
           <span className="mk-feed-loaded">
             {data.events.length} {t("événements chargés")}
           </span>
@@ -574,6 +505,32 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
           <div
             ref={viewport}
             className="mk-feed-viewport"
+            data-motion={moving ? "running" : "paused"}
+            onPointerDown={(event) => {
+              pointerStart.current = event.clientX;
+              suppressClick.current = false;
+              if (event.pointerType === "touch") pause();
+            }}
+            onPointerUp={(event) => {
+              if (pointerStart.current === null) return;
+              const delta = event.clientX - pointerStart.current;
+              pointerStart.current = null;
+              if (Math.abs(delta) > 45) {
+                suppressClick.current = true;
+                move(delta < 0 ? "next" : "previous");
+              }
+            }}
+            onPointerCancel={() => {
+              pointerStart.current = null;
+            }}
+            onDragStart={(event) => event.preventDefault()}
+            onClickCapture={(event) => {
+              if (suppressClick.current) {
+                event.preventDefault();
+                event.stopPropagation();
+                suppressClick.current = false;
+              }
+            }}
             role="region"
             aria-roledescription="carousel"
             aria-label={t("Carrousel du marché")}
@@ -601,14 +558,11 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
               if (event.key === "Home" || event.key === "End") {
                 event.preventDefault();
                 pause();
-                carousel?.scrollTo(
-                  event.key === "Home" ? 0 : data.events.length - 1,
-                  reducedMotion,
-                );
+                goTo(event.key === "Home" ? 0 : data.events.length - 1);
               }
             }}
           >
-            <div className="mk-feed-track">
+            <div className="mk-feed-track" ref={marquee.track}>
               {slides.map((event, index) => (
                 <article
                   key={event.id + "-" + index}
@@ -616,7 +570,8 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
                   className={
                     "mk-feed-slide " +
                     (event.id === data.arrival ? "mk-feed-arrival " : "") +
-                    (selected === index % data.events.length
+                    (data.events[selected]?.id === event.id &&
+                    index < data.events.length
                       ? "is-selected"
                       : "")
                   }
@@ -625,14 +580,22 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
                   aria-label={
                     t("Événement") +
                     " " +
-                    ((index % data.events.length) + 1) +
+                    (data.events.findIndex((item) => item.id === event.id) +
+                      1) +
                     " / " +
                     data.events.length
                   }
                   aria-current={
-                    selected === index % data.events.length ? "true" : undefined
+                    data.events[selected]?.id === event.id &&
+                    index < data.events.length
+                      ? "true"
+                      : undefined
                   }
-                  aria-hidden={index >= data.events.length || undefined}
+                  aria-hidden={
+                    index >= data.events.length ||
+                    data.events[selected]?.id !== event.id ||
+                    undefined
+                  }
                 >
                   <div className="mk-feed-card">
                     <div className="mk-feed-card-copy">
@@ -661,7 +624,12 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
                       </span>
                       <Link
                         className="mk-feed-title"
-                        tabIndex={index >= data.events.length ? -1 : undefined}
+                        tabIndex={
+                          index >= data.events.length ||
+                          data.events[selected]?.id !== event.id
+                            ? -1
+                            : undefined
+                        }
                         href={
                           demo
                             ? "/feed?demo=1"
@@ -669,12 +637,92 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
                         }
                         onClick={(click) => inspect(event, click)}
                       >
-                        <h2>{event.product.title}</h2>
+                        <h2>
+                          {demo ? t(event.product.title) : event.product.title}
+                        </h2>
                         <ArrowUpRight size={23} />
                       </Link>
+                      {event.product.tagline && (
+                        <p className="mk-feed-tagline">
+                          {t(event.product.tagline)}
+                        </p>
+                      )}
+                      {event.product.description && (
+                        <p className="mk-feed-description">
+                          {t(event.product.description)}
+                        </p>
+                      )}
+                      {!!event.product.tags?.length && (
+                        <ul className="mk-feed-features">
+                          {event.product.tags.map((tag) => (
+                            <li key={tag}>
+                              <Check size={13} />
+                              {t(tag)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <dl className="mk-feed-specs">
+                        {event.product.agent_count && (
+                          <div>
+                            <dt>{t("COMPOSITION")}</dt>
+                            <dd>
+                              {event.product.agent_count}{" "}
+                              {t(
+                                event.product.agent_count === 1
+                                  ? "agent"
+                                  : "agents",
+                              )}
+                            </dd>
+                          </div>
+                        )}
+                        {event.product.version && (
+                          <div>
+                            <dt>{t("VERSION")}</dt>
+                            <dd>v{event.product.version}</dd>
+                          </div>
+                        )}
+                        {event.product.license && (
+                          <div>
+                            <dt>{t("LICENCE")}</dt>
+                            <dd>{t(event.product.license)}</dd>
+                          </div>
+                        )}
+                      </dl>
+                      {(event.product.requirements || event.product.setup) && (
+                        <details className="mk-feed-details">
+                          <summary
+                            tabIndex={
+                              index >= data.events.length ||
+                              data.events[selected]?.id !== event.id
+                                ? -1
+                                : undefined
+                            }
+                          >
+                            {t("Prérequis et installation")}
+                          </summary>
+                          {event.product.requirements && (
+                            <p>
+                              <strong>{t("Prérequis")}</strong>
+                              {t(event.product.requirements)}
+                            </p>
+                          )}
+                          {event.product.setup && (
+                            <p>
+                              <strong>{t("Installation")}</strong>
+                              {t(event.product.setup)}
+                            </p>
+                          )}
+                        </details>
+                      )}
                       <Link
                         className="mk-feed-seller"
-                        tabIndex={index >= data.events.length ? -1 : undefined}
+                        tabIndex={
+                          index >= data.events.length ||
+                          data.events[selected]?.id !== event.id
+                            ? -1
+                            : undefined
+                        }
                         href={
                           demo
                             ? "/feed?demo=1"
@@ -701,6 +749,14 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
                               )}
                             </small>
                             <EventAmount event={event} />
+                            {event.product.price_cents != null &&
+                              event.product.price_cents !==
+                                event.amount_cents && (
+                                <p className="mk-feed-current-price">
+                                  {t("Prix actuel :")}{" "}
+                                  {money(event.product.price_cents, locale)}
+                                </p>
+                              )}
                           </div>
                         ) : (
                           <span className="mk-feed-price-hidden">
@@ -716,13 +772,17 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
                           onClick={(click) => inspect(event, click)}
                           className="mk-feed-open"
                           tabIndex={
-                            index >= data.events.length ? -1 : undefined
+                            index >= data.events.length ||
+                            data.events[selected]?.id !== event.id
+                              ? -1
+                              : undefined
                           }
                           aria-label={
                             t("Voir la fiche") + " : " + event.product.title
                           }
                         >
-                          <ArrowUpRight size={22} />
+                          {t(demo ? "Découvrir le concept" : "Voir la fiche")}{" "}
+                          <ArrowUpRight size={18} />
                         </Link>
                       </div>
                     </div>
@@ -739,7 +799,7 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
                         <img
                           src={event.product.cover_url}
                           alt=""
-                          loading="lazy"
+                          loading={index === 0 ? "eager" : "lazy"}
                         />
                       ) : (
                         <>
@@ -752,6 +812,27 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
                           <span>marketpaperclip</span>
                         </>
                       )}
+                      <div className="mk-feed-art-caption">
+                        <Sparkles size={15} />
+                        <span>
+                          {t(
+                            demo
+                              ? "CONCEPT ORIGINAL · DÉMO"
+                              : "DÉCOUVREZ LE MODÈLE",
+                          )}
+                        </span>
+                      </div>
+                      <div className="mk-feed-art-number">
+                        {String(
+                          data.events.findIndex(
+                            (item) => item.id === event.id,
+                          ) + 1,
+                        ).padStart(2, "0")}
+                        <span>
+                          {" "}
+                          / {String(data.events.length).padStart(2, "0")}
+                        </span>
+                      </div>
                     </Link>
                   </div>
                 </article>
@@ -810,7 +891,7 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
           <MousePointer2 size={14} />
           <span>
             {t(
-              "Glissez, utilisez les flèches ou Maj + molette pour remonter le fil.",
+              "Survolez pour lire. Glissez, utilisez les flèches ou Maj + molette pour revenir en arrière.",
             )}
           </span>
         </div>
@@ -823,7 +904,7 @@ function MarketFeedCarousel({ demo }: { demo: boolean }) {
             aria-label={t("Parcourir l’historique")}
             onChange={(event) => {
               pause();
-              carousel?.scrollTo(Number(event.target.value), reducedMotion);
+              goTo(Number(event.target.value));
             }}
           />
         )}
