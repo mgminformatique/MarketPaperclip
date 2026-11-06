@@ -1,5 +1,19 @@
 # MarketPaperclip — Handoff
 
+## Modèles complets et défilement continu — 5 novembre 2026 au soir
+
+Publié sur **https://marketpaperclip.com/feed?demo=1&lang=fr**. Code du Feed **`a7805f8`**, correction du paquet Netlify **`784b770`**, tous deux sur `main`. Déploiement final **`6aed37aa8c5801be7e01f89e`**, `ready`, publié le **6 novembre à 02 h 13 UTC** (5 novembre à 21 h 13 HE), aucune planification.
+
+Chaque modèle occupe maintenant **100 % de la largeur de la scène**, avec grand visuel (également sur mobile), description complète, prix, créateur, tags, composition, licence, version et prérequis/installation. La lecture déplace la scène à vitesse constante de droite à gauche, **28 secondes par largeur**, sans les arrêts de l'ancien carrousel à cinq secondes. Le premier modèle est immédiatement visible au chargement; les suivants entrent par le bord droit et sortent complètement à gauche. Une copie visuelle du premier élément assure la boucle, sans gonfler les comptes ni créer de doublon accessible. Les arrivées préservent la position exacte et le modèle suivant déjà partiellement visible; elles se placent au-delà du bord droit. Pause, survol, focus, souris/tactile, flèches, clavier, molette, historique et retour au direct sont conservés; mouvement réduit = défilement désactivé.
+
+**NEXUS PRIME — Démo** est le modèle fictif d'ouverture : concept de **12 agents, 249 $ CA**, couverture originale ImageGen (`public/art/nexus-prime-demo.webp`, 198 424 octets), description, capacités imaginaires et spécifications. ORBIT RESEARCH et FORGE STUDIO complètent les exemples. Le scénario reste exclusivement en mémoire du navigateur : **aucune annonce, vente, commande, donnée Stripe ou statistique n'a été créée**. L'API réelle retourne toujours une annonce publiée et zéro vente payée, sans identifiants de démo. Pour retirer les exemples sur demande du propriétaire : `FEED_DEMO_ENABLED = false` dans `lib/market/feed-demo.ts`, puis déployer.
+
+Le Feed réel charge désormais les détails publics de `products` via une projection explicite : description, accroche, version, licence, tags, nombre d'agents, prérequis, installation et prix actuel. Les chemins et fichiers privés restent exclus. Les anciens endpoints d'activité restent compatibles avec ces champs optionnels. Aucune migration.
+
+**Validation finale :** TypeScript, **129 tests**, build, CI GitHub **42148610610** et **42148867515** réussis; **60 contrôles publics** sur le déploiement final. Client compilé réellement publié contrôlé en FR/EN pour la démo et le Feed : mouvement intermédiaire linéaire vers la gauche, conservation de la fraction visible, file d'arrivées, navigation/historique, souris, reprise après erreur, absence de requêtes au Feed réel pendant la démo, sortie et remise à zéro. Un/deux événements, prix masqués et mouvement réduit également contrôlés localement. Image et JavaScript publics répondent 200. L'accès au navigateur de l'opérateur est indisponible : le rendu visuel desktop/mobile reste à vérifier dans un navigateur.
+
+**Correction de publication :** le premier paquet avait réutilisé le ZIP de fonction mis en cache par `netlify serve`, qui référençait un ancien nom de chunk JavaScript et provoquait un 404 au démarrage. Les contrôles du client publié l'ont détecté. `scripts/netlify-prepare.mjs` supprime maintenant le cache généré `.netlify/functions` avant de préparer chaque build; le déploiement final a été repaqueté et les parcours compilés passent. Toujours exécuter la préparation après le dernier build et vérifier le client publié, en plus des contrôles HTTP.
+
 ## Exemple temporaire du Feed — 5 novembre 2026 au soir
 
 À la demande du propriétaire, une démonstration amovible est publiée sur **https://marketpaperclip.com/feed?demo=1&lang=fr**. Code **`4932963`** sur `main`, déploiement Netlify **`6aed2fc9f8bec426be5a05e8`**, état `ready`, publié le **6 novembre à 01 h 39 UTC** (5 novembre à 20 h 39 HE), aucune planification.
