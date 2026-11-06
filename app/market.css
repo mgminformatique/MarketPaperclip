@@ -534,6 +534,119 @@
   letter-spacing: 1.2px;
   color: #7f946c;
 }
+
+/* Feed: Explore's live ticker expanded into an interactive market rail. */
+.mk-feed { min-width: 0; padding-top: 18px; }
+.mk-feed-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
+.mk-feed-heading .eyebrow { color: #94aa80; font-size: 9px; letter-spacing: 2px; }
+.mk-feed-heading h1 { font: 650 clamp(52px, 6vw, 82px)/1.05 "Manrope Variable", sans-serif; letter-spacing: -5px; margin: 13px 0 16px; }
+.mk-feed-heading h1 > span { color: var(--lime); }
+.mk-feed-heading p { color: #9bac8d; font-size: 13px; line-height: 1.7; }
+.mk-feed-live { display: flex; align-items: center; gap: 11px; color: var(--lime); border: 1px solid #364c28; background: #1b2916; border-radius: 100px; padding: 11px 16px; font-size: 9px; font-weight: 650; letter-spacing: 1.4px; flex-shrink: 0; }
+.mk-feed-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.mk-feed-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mk-feed-filters button { display: inline-flex; align-items: center; gap: 7px; padding: 10px 13px; font-size: 11px; color: #9aad8a; border: 1px solid transparent; border-radius: 8px; background: transparent; }
+.mk-feed-filters button[aria-pressed="true"] { color: var(--lime); border-color: #3e552d; background: #1c2a16; }
+.mk-feed-filters button:hover { color: #e0edce; }
+.mk-feed-play.button { font-size: 10px; flex-shrink: 0; }
+.mk-feed-stage { background: #121812; border: 1px solid #2a3a23; border-radius: 17px; overflow: hidden; }
+.mk-feed-stage-label { display: flex; align-items: center; gap: 9px; padding: 20px 25px; color: #9db68b; font-size: 8px; font-weight: 600; letter-spacing: 1.6px; border-bottom: 1px solid #2a3a23; }
+.mk-feed-stage-label > svg { color: var(--lime); }
+.mk-feed-loaded { margin-left: auto; color: #718865; font-size: 9px; font-weight: 400; letter-spacing: 0; }
+.mk-feed-viewport { overflow: hidden; touch-action: pan-y pinch-zoom; padding: 28px 0 22px; cursor: grab; }
+.mk-feed-viewport:active { cursor: grabbing; }
+.mk-feed-viewport:focus-visible { outline: 2px solid var(--lime); outline-offset: -3px; }
+.mk-feed-track { display: flex; align-items: stretch; gap: 0; }
+.mk-feed-slide { flex: 0 0 90%; min-width: 0; padding: 0 10px; opacity: .6; transition: opacity .35s; }
+.mk-feed-slide.is-selected { opacity: 1; }
+.mk-feed-card { display: grid; grid-template-columns: minmax(0, 1fr) 33%; min-height: 365px; height: 100%; background: #182016; border: 1px solid #3b4e2e; border-radius: 14px; overflow: hidden; box-shadow: 0 14px 32px #0002; }
+.mk-feed-slide.is-selected .mk-feed-card { border-color: #6b8747; box-shadow: 0 0 0 1px #bbef6d12, 0 14px 32px #0003; }
+.mk-feed-card-copy { padding: 28px 30px; display: flex; flex-direction: column; min-width: 0; }
+.mk-feed-event-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 30px; }
+.mk-feed .mk-kind { font-size: 10px; gap: 6px; }
+.mk-feed-event-heading time { display: inline-flex; gap: 6px; align-items: center; color: #90a37f; font-size: 10px; white-space: nowrap; }
+.mk-feed-engine { color: #8aa177; font-size: 9px; letter-spacing: .8px; text-transform: uppercase; }
+.mk-feed-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; color: #f0f5e8; margin: 11px 0 20px; }
+.mk-feed-title h2 { font: 650 clamp(24px, 3vw, 41px)/1.18 "Manrope Variable", sans-serif; letter-spacing: -1.3px; overflow-wrap: anywhere; }
+.mk-feed-title > svg { flex-shrink: 0; margin-top: 4px; color: #a5c583; }
+.mk-feed-title:hover { color: var(--lime); }
+.mk-feed-seller { display: flex; align-items: center; gap: 9px; width: fit-content; color: #c0cdb3; font-size: 11px; margin-bottom: 28px; }
+.mk-feed-seller .avatar { width: 29px; height: 29px; font-size: 10px; }
+.mk-feed-seller small { display: block; color: #81946f; font-size: 9px; margin-top: 4px; }
+.mk-feed-card-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: auto; border-top: 1px solid #33452a; padding-top: 23px; }
+.mk-feed-price > small { display: block; color: #8d9f7c; font-size: 8px; letter-spacing: 1.5px; margin-bottom: 9px; }
+.mk-feed-price > .mk-amount { font: 650 clamp(26px, 3vw, 39px)/1.15 "Manrope Variable", sans-serif; letter-spacing: -1px; color: var(--lime); }
+.mk-feed-price > .mk-amount small { font-size: 11px; letter-spacing: 0; }
+.mk-feed-price > span:not(.mk-amount), .mk-feed-price-hidden { font-size: 24px; color: var(--lime); }
+.mk-feed-open { width: 43px; height: 43px; display: grid; place-items: center; border: 1px solid #526c38; border-radius: 50%; color: var(--lime); flex-shrink: 0; }
+.mk-feed-open:hover { background: var(--lime); color: #15200f; }
+.mk-feed-art { position: relative; display: grid; place-items: center; min-height: 250px; background: radial-gradient(ellipse at 45% 20%, #455c2a, #1a2812 75%); color: #b6dd89; overflow: hidden; border-left: 1px solid #3b4e2e; }
+.mk-feed-art > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mk-feed-art > svg { position: relative; z-index: 1; filter: drop-shadow(0 16px 15px #0005); transform: rotate(-10deg); }
+.mk-feed-art > span { position: absolute; bottom: 25px; font-size: 8px; letter-spacing: 1.5px; color: #8fa571; }
+.mk-feed-art-grid { position: absolute; inset: 0; background-image: linear-gradient(#a8ce7210 1px, transparent 1px), linear-gradient(90deg,#a8ce7210 1px, transparent 1px); background-size: 28px 28px; mask-image: radial-gradient(ellipse, #000, transparent 80%); }
+.mk-feed-controls { display: flex; align-items: center; gap: 18px; padding: 10px 25px 23px; }
+.mk-feed-arrows { display: flex; gap: 8px; }
+.mk-feed-arrows .icon-button { border: 1px solid #3c502e; background: #192315; width: 42px; height: 42px; border-radius: 50%; color: #c0d4aa; }
+.mk-feed-arrows .icon-button:hover:not(:disabled) { color: var(--lime); border-color: #84a653; }
+.mk-feed-arrows .icon-button:disabled { opacity: .35; cursor: default; }
+.mk-feed-position { display: flex; align-items: baseline; gap: 5px; color: #81946f; font: 11px monospace; }
+.mk-feed-position strong { font-size: 18px; color: #d5e6c5; }
+.mk-feed-return.button { margin-left: auto; font-size: 10px; padding: 10px 12px; }
+.mk-feed-unread { display: inline-flex; min-width: 20px; height: 19px; align-items: center; justify-content: center; border-radius: 20px; background: var(--lime); color: #172410; font-size: 9px; padding: 0 4px; }
+.mk-feed-empty { min-height: 370px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 42px 25px; text-align: center; }
+.mk-feed-empty-icon { width: 90px; height: 90px; display: grid; place-items: center; border: 1px solid #3c542b; border-radius: 25px; color: var(--lime); background: radial-gradient(ellipse at top, #2b3e1d, #182214); margin-bottom: 28px; }
+.mk-feed-empty h2 { font: 600 clamp(22px, 2.5vw, 31px)/1.3 "Manrope Variable", sans-serif; letter-spacing: -.7px; margin: 12px 0; }
+.mk-feed-empty > svg { color: var(--lime); margin-bottom: 20px; }
+.mk-feed-empty p { font-size: 12px; line-height: 1.8; color: #8ca078; max-width: 400px; }
+.mk-feed-empty .button { margin-top: 24px; font-size: 11px; }
+.mk-feed-history { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; color: #829775; margin: 22px 4px; }
+.mk-feed-history > div { display: flex; align-items: center; gap: 7px; font-size: 10px; }
+.mk-feed-history > time { font-size: 10px; color: #8ea17d; }
+.mk-feed-history > input { accent-color: var(--lime); flex: 1; min-width: 100px; max-width: 230px; height: 16px; cursor: pointer; }
+.mk-feed-older.button { display: flex; margin: 28px auto; font-size: 11px; }
+.mk-feed-footnote { font-size: 10px; color: #6e8462; text-align: center; line-height: 1.7; margin: 27px 0 0; }
+.mk-feed-arrival .mk-feed-card { animation: mk-feed-arrive .75s ease-out; }
+@keyframes mk-feed-arrive { from { opacity: 0; transform: translateX(44px); border-color: var(--lime); box-shadow: 0 0 32px #b9ed702b; } to { opacity: 1; transform: translateX(0); border-color: #6b8747; } }
+@media (max-width: 1000px) {
+  .mk-feed-slide { flex-basis: 94%; padding: 0 7px; }
+  .mk-feed-card { grid-template-columns: minmax(0, 1fr) 26%; }
+  .mk-feed-card-copy { padding: 24px; }
+  .mk-feed-art > svg { width: 70px; height: 70px; }
+  .mk-feed-art > span { font-size: 7px; letter-spacing: .4px; }
+}
+@media (max-width: 650px) {
+  .mk-feed { padding-top: 10px; }
+  .mk-feed-heading { gap: 12px; margin-bottom: 26px; }
+  .mk-feed-heading h1 { font-size: 58px; letter-spacing: -3px; }
+  .mk-feed-heading p { font-size: 11px; max-width: 245px; }
+  .mk-feed-heading .eyebrow { font-size: 7px; letter-spacing: 1.3px; }
+  .mk-feed-live { padding: 9px 11px; font-size: 7px; letter-spacing: 1px; }
+  .mk-feed-toolbar { flex-wrap: wrap; gap: 12px; }
+  .mk-feed-filters { gap: 3px; }
+  .mk-feed-filters button { padding: 9px 8px; font-size: 10px; gap: 4px; }
+  .mk-feed-stage-label { padding: 17px 18px; font-size: 7px; letter-spacing: 1.1px; }
+  .mk-feed-loaded { font-size: 8px; }
+  .mk-feed-viewport { padding: 20px 0 15px; }
+  .mk-feed-card { grid-template-columns: minmax(0, 1fr); min-height: 330px; }
+  .mk-feed-card-copy { padding: 22px 20px; }
+  .mk-feed-art { display: none; }
+  .mk-feed-title h2 { font-size: 30px; }
+  .mk-feed-event-heading { margin-bottom: 30px; gap: 7px; }
+  .mk-feed .mk-kind { font-size: 9px; }
+  .mk-feed-event-heading time { font-size: 9px; }
+  .mk-feed-card-bottom { padding-top: 20px; }
+  .mk-feed-price > .mk-amount { font-size: 33px; }
+  .mk-feed-controls { padding: 10px 15px 20px; gap: 10px; flex-wrap: wrap; }
+  .mk-feed-arrows .icon-button { width: 36px; height: 36px; }
+  .mk-feed-return.button { font-size: 9px; gap: 5px; padding: 9px 10px; }
+  .mk-feed-position { font-size: 9px; }
+  .mk-feed-position strong { font-size: 15px; }
+  .mk-feed-history > div { flex-basis: 100%; font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-feed *, .mk-feed-arrival .mk-feed-card { animation: none !important; transition: none !important; }
+}
 .mk-pulse-stat strong {
   font:
     700 13px "Manrope Variable",

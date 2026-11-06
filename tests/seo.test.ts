@@ -46,6 +46,7 @@ const product: Product = {
 test("Routes are classified for indexing; private and unknown pages are not indexed", () => {
   assert.deepEqual(seoRoute("/"), { kind: "static", path: "/" });
   assert.deepEqual(seoRoute("/market/"), { kind: "static", path: "/market" });
+  assert.deepEqual(seoRoute("/feed"), { kind: "static", path: "/feed" });
   assert.deepEqual(seoRoute("/agents/recon-pro-1a2b3c4d"), {
     kind: "product",
     path: "/agents/recon-pro-1a2b3c4d",

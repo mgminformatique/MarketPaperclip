@@ -10,6 +10,7 @@ Le site est en production sur **https://marketpaperclip.com**, avec Supabase, la
 
 - Catalogue avec recherche, catégories, modèles, tri, pagination, agents et bundles.
 - **Le marché** (`/market`) : volume, ventes, prix plancher, tendances, top créateurs, activité en direct, nouvelles annonces; bandeau en direct sur l’accueil. Voir [docs/MARKET.md](docs/MARKET.md).
+- **Feed** (`/feed`) : grande version interactive de la banderole d'Explore, arrivées de droite à gauche, lecture automatique, glissement, flèches, historique paginé et retour au direct. Les filtres distinguent mises en vente et ventes payées.
 - **Offres** entre acheteurs et vendeurs (accepter/refuser, 72 h pour payer le montant convenu), gestion des annonces (prix et pause sans nouvelle validation), statistiques de fiche et de créateur.
 - Fiches détaillées : prérequis, installation, version, licence, avis d’acheteurs confirmés.
 - Profil personnel `/profile` pour chaque membre : photo, couverture, fil de publications, création des modèles sur place, brouillons et suivi des validations. Profils publics partageables, favoris, studio créateur et dépôt ZIP/JSON privé (20 Mo). Voir [les profils](docs/PROFILS.md).

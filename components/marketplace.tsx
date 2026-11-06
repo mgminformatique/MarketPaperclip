@@ -40,6 +40,7 @@ import {
   Pencil,
   Plus,
   Rocket,
+  Radio,
   Search,
   Settings2,
   ShieldCheck,
@@ -106,6 +107,7 @@ import {
   ProfilePhotos,
 } from "./profile";
 import { ProfileDetailsModal, ProfileModels, ProfileModelSaved } from "./profile-models";
+import { MarketFeed } from "./market-feed";
 export type Session = {
   user: {
     id: string;
@@ -308,6 +310,9 @@ export default function Marketplace({
             <Activity size={18} />
             {t(" Le marché")} <span className="nav-tag">{t("LIVE")}</span>
           </Link>
+          <Link className={"nav-item " + (pathname === "/feed" ? "active" : "")} href="/feed">
+            <Radio size={18} />{t(" Feed")}<span className="nav-tag">{t("LIVE")}</span>
+          </Link>
           <Link
             className={"nav-item " + (pathname === "/agents" ? "active" : "")}
             href="/agents"
@@ -489,6 +494,8 @@ export default function Marketplace({
                 notify={notify}
                 initial={initial?.product ?? undefined}
               />
+            ) : pathname === "/feed" ? (
+              <MarketFeed />
             ) : pathname === "/market" ? (
               <MarketPage favorites={favorites} save={save} />
             ) : pathname === "/creators" ? (

@@ -69,7 +69,7 @@ const rangeLabels: Record<MarketRange, string> = {
   all: "Depuis le début",
 };
 
-function EventKind({ event }: { event: MarketEvent }) {
+export function EventKind({ event }: { event: MarketEvent }) {
   const { t } = useI18n();
   const Icon = eventIcons[event.kind];
   const label =
@@ -427,7 +427,7 @@ export function MarketPulse() {
   if (!events.length || !overview) return null;
   return (
     <section className="mk-pulse" aria-label={t("Le marché en direct")}>
-      <Link href="/market" className="mk-pulse-label">
+      <Link href="/feed" className="mk-pulse-label" title={t("Ouvrir le Feed")}>
         <span className="mk-live-dot" />
         {t("EN DIRECT")}
       </Link>

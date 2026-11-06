@@ -8,10 +8,13 @@
 // it never signs in a real user or sends a write to production.
 // profileFixture:"owner"|"visitor"|"anonymous" checks profile editing and model
 // publication using local response fixtures; never writes to the live API.
+// feedFixture:"full"|"single"|"two"|"hidden-prices"|"reduced" checks the real
+// carousel with isolated responses and controlled timers, without API writes.
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { createProfileFixture, checkProfileClient } from "./profile-client-fixture.mjs";
+import { createFeedFixture, checkFeedClient } from "./feed-client-fixture.mjs";
 
 let input = "";
 for await (const chunk of process.stdin) input += chunk;
@@ -23,12 +26,14 @@ const {
   authOnly = false,
   studioFixture = false,
   profileFixture = false,
+  feedFixture = false,
 } = JSON.parse(input);
 assert.ok(["fr", "en"].includes(initialLocale));
 let browserWindow;
 const origin = new URL(suppliedOrigin).origin;
 assert.ok(new URL(origin).protocol === "https:" || (!bearer && new URL(origin).protocol === "http:" && new URL(origin).hostname === "127.0.0.1"), "HTTPS or an uncredentialed local QA server is required");
 const profileQA = profileFixture ? createProfileFixture(profileFixture) : null;
+const feedQA = feedFixture ? createFeedFixture(feedFixture) : null;
 const networkFetch = globalThis.fetch;
 let fixtureOnboardingCalls = 0;
 async function get(input, options = {}) {
@@ -36,6 +41,8 @@ async function get(input, options = {}) {
   assert.equal(url.origin, origin, "QA requests must stay on the Site origin");
   const profileResponse = profileQA?.fetch(url, options);
   if (profileResponse) return profileResponse;
+  const feedResponse = feedQA?.fetch(url, options);
+  if (feedResponse) return feedResponse;
   if (studioFixture) {
     if (url.pathname === "/api/me") return Response.json({
       user: { id: "11111111-1111-4111-8111-111111111111", email: "qa@example.test" },
@@ -77,7 +84,7 @@ async function get(input, options = {}) {
   }
   return response;
 }
-const initialUrl = origin + (profileQA ? profileQA.initialPath : studioFixture ? "/studio" : "/") + "?lang=" + initialLocale;
+const initialUrl = origin + (feedQA ? feedQA.initialPath : profileQA ? profileQA.initialPath : studioFixture ? "/studio" : "/") + "?lang=" + initialLocale;
 const html = await (await get(initialUrl)).text();
 const errors = [];
 const virtualConsole = new VirtualConsole();
@@ -98,7 +105,7 @@ assert.equal(
   initialLocale,
   "server-rendered language",
 );
-if (!profileQA) assert.match(
+if (!profileQA && !feedQA) assert.match(
   w.document.title,
   studioFixture ? /My workspace|Mon espace/ : initialLocale === "en"
     ? /The AI agent marketplace for developers/
@@ -129,6 +136,7 @@ if (profileQA) {
   w.HTMLCanvasElement.prototype.toBlob = function (done, type) { done(new w.Blob([new Uint8Array([0x89,0x50,0x4e,0x47])],{type})); };
   w.HTMLElement.prototype.scrollIntoView = () => {};
 }
+if (feedQA) feedQA.install(w);
 w.addEventListener("error", (event) => errors.push(String(event.error)));
 w.localStorage.setItem("mp-favorites", "null"); // Reproduce the stored-state regression.
 const context = dom.getInternalVMContext();
@@ -188,13 +196,19 @@ try {
   await module.link(link);
   await module.evaluate();
   await until(
-    () => w.__NEXT_HYDRATED && w.document.querySelector(authOnly || studioFixture || profileQA ? ".app-shell" : ".save-button"),
+    () => w.__NEXT_HYDRATED && w.document.querySelector(authOnly || studioFixture || profileQA || feedQA ? ".app-shell" : ".save-button"),
     "hydration",
   );
   // Allow the effect that reads corrupt favorites to commit before testing clicks.
   await new Promise((resolve) => setTimeout(resolve, 150));
   assert.ok(w.document.querySelector(".app-shell"));
   console.log("PASS client startup with invalid stored favorites");
+
+  if (feedQA) {
+    await checkFeedClient({w,fixture:feedQA,until,click,errors,locale:initialLocale});
+    dom.window.close();
+    process.exit(0);
+  }
 
   if (profileQA) {
     await checkProfileClient({w,mode:profileFixture,fixture:profileQA,until,click,errors,locale:initialLocale});

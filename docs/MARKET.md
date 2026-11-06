@@ -24,6 +24,7 @@ Les agents gratuits s'ajoutent directement aux acquisitions dès que `LAUNCH_REA
 | Vue | Contenu |
 | --- | --- |
 | `/market` | volume, ventes, annonces, créateurs actifs, prix plancher et moyen, offres ouvertes, volume quotidien, tendances, top créateurs, activité, nouvelles annonces |
+| `/feed` | grande banderole interactive : événements réels, arrivées de droite à gauche, défilement automatique, navigation et historique paginé |
 | Accueil | bandeau « EN DIRECT » (affiché dès qu'il y a de l'activité) |
 | Fiche produit | dernière vente, meilleure offre, acquisitions, favoris ; onglet *Activité* avec historique des prix de vente |
 | Profil créateur | volume, ventes, acheteurs, annonces, note moyenne, ancienneté, badge « Vendeur vérifié par Stripe » ; activité du studio |
@@ -31,6 +32,26 @@ Les agents gratuits s'ajoutent directement aux acquisitions dès que `LAUNCH_REA
 **Les acheteurs ne sont jamais identifiés publiquement.** Le registre `market_events` (mise en vente, remise en vente, pause, nouveau prix, offre, vente) ne contient aucun identifiant d'acheteur ; seules les annonces actuellement en ligne y sont visibles. Les statistiques sont des agrégats calculés en base. Aucun chiffre n'est inventé : un marché vide affiche des états vides.
 
 ## Implémentation
+
+### Feed interactif — 5 novembre 2026
+
+Le lien **Feed** est disponible dans la navigation et sur le libellé **EN DIRECT** de la banderole d'Explore. La page reprend ses couleurs, badges, événements, prix CAD et liens vers les produits, en grand format. Le filtre **Tout** présente les mêmes catégories d'événements que la banderole; **Mises en vente** garde les annonces et remises en vente; **Ventes payées** garde uniquement les événements de vente d'un montant positif. Une annonce ou une acquisition gratuite n'est pas présentée comme une vente payée.
+
+Le carrousel avance de droite à gauche toutes les cinq secondes. Les nouvelles données sont recherchées toutes les quinze secondes, puis les arrivées d'un même lot sont présentées une par une. Comme la petite banderole, un fil très court réutilise des copies visuelles pour boucler; le compteur et les données restent ceux des événements uniques. Aucune activité n'est inventée pour remplir un fil vide.
+
+Glissement souris/tactile, flèches, touches gauche/droite, Début/Fin, geste horizontal ou Maj + molette et curseur d'historique permettent de consulter les événements. Une navigation manuelle suspend la lecture. Les nouveaux événements continuent d'être reçus sans déplacer la carte consultée; **Revenir au direct** rejoint les dernières arrivées et reprend la lecture. Survol et focus suspendent temporairement l'avance. La préférence de mouvement réduit démarre avec la lecture en pause et supprime les animations.
+
+**Charger l'historique plus ancien** remonte au-delà de la première page. Une interruption réseau laisse les cartes déjà chargées en place. Les réponses qui se recoupent sont dédupliquées par identifiant, avec conservation de l'événement consulté pendant les insertions.
+
+API publique : `GET /api/market/feed?filter=all|listings|sales&limit=24`, avec `before=<id>` pour le passé ou `after=<id>` pour le rattrapage des nouveautés. Les deux curseurs sont exclusifs. Limite de page : 1 à 60. Le rattrapage est renvoyé dans l'ordre croissant, pour ne pas sauter les premières arrivées d'un lot; l'historique est renvoyé dans l'ordre décroissant. Réponse : `events`, `more`, `oldest`, `newest`. Les champs sont explicitement sélectionnés et reconstruits côté serveur; seuls les événements d'annonces actuellement publiées sont exposés. Aucune commande, identité d'acheteur, adresse courriel ni liaison Stripe n'est lue par cette route. Elle réutilise les tables existantes : aucune migration.
+
+Interface : `components/market-feed.tsx`, carrousel Embla déjà installé; paramètres et fusion des pages dans `lib/market/feed.ts`. Les **124 tests** de la suite couvrent notamment les curseurs, filtres, champs publics et recoupements. Les contrôles du client compilé utilisent des réponses locales avec l'implémentation réelle du carrousel : lecture, arrivées successives, historique préservé, retour au direct, clavier, molette, pagination, curseur, erreur/réessai, un ou deux événements, prix masqués et mouvement réduit, en français et anglais. Ils n'ajoutent aucune vente à la production. Exemple sur le build servi localement :
+
+```sh
+printf '%s' '{"origin":"http://127.0.0.1:8894","locale":"fr","feedFixture":"full"}' | node --experimental-vm-modules scripts/check-client-interactions.mjs
+```
+
+`feedFixture` accepte `full`, `single`, `two`, `hidden-prices` et `reduced`. JSDOM fournit une géométrie fixe pour ces contrôles; ils ne remplacent pas une vérification visuelle desktop/mobile, indisponible dans cette session.
 
 - Base : `supabase/migrations/007_market_exchange.sql` — triggers d'événements, offres, contrôle des annonces, fonctions de statistiques. Toutes les écritures passent par des fonctions réservées au serveur ; les navigateurs ne lisent que leurs propres offres.
 - API : `lib/market/api.ts` — `market/overview|activity|leaderboard|trending`, `offers`, `products/:id/price|listing|file/upload|file/attach`, `checkout` (offres acceptées).

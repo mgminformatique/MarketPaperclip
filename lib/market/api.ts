@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { MarketEvent } from "./market";
+import { FEED_PAGE_SIZE } from "./feed";
 import { localizedHref, requestLocale } from "../i18n/locale";
 import { publicConfig } from "./config";
 import { demoProducts } from "./demo";
@@ -441,6 +443,38 @@ export async function marketApi(req: Request, c: Config) {
       return ctx.json({ posts: feed.posts, more: feed.more });
     }
     if (path[0] === "market" && path.length === 2 && req.method === "GET") {
+      if (path[1] === "feed") {
+        const cursor = z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional();
+        const query = z.object({
+          before: cursor,
+          after: cursor,
+          limit: z.coerce.number().int().min(1).max(60).default(FEED_PAGE_SIZE),
+          filter: z.enum(["all", "listings", "sales"]).default("all"),
+        }).refine(value => !(value.before && value.after)).parse(Object.fromEntries(url.searchParams));
+        if (!ready(c)) return ctx.json({ events: [], more: false, oldest: null, newest: null, demo: true });
+        // Only curated fields from currently public listings. No order,
+        // purchaser, email, private offer or connected-account data is read.
+        let records = admin(c).from("market_events").select(
+          "id,kind,amount_cents,previous_cents,created_at,product:products!market_events_product_id_fkey!inner(slug,title,kind,engine,cover_url),seller:profiles!market_events_seller_id_fkey(username,display_name)",
+        ).eq("product.status", "published").order("id", { ascending: !!query.after }).limit(query.limit + 1);
+        if (query.before) records = records.lt("id", query.before);
+        if (query.after) records = records.gt("id", query.after);
+        if (query.filter === "listings") records = records.in("kind", ["listed", "relisted"]);
+        if (query.filter === "sales") records = records.eq("kind", "sold").gt("amount_cents", 0);
+        const { data, error } = await records;
+        check(error, "Le feed est momentanément indisponible. Réessayez dans un instant.");
+        const rows = (data || []) as unknown as MarketEvent[];
+        const events = rows.slice(0, query.limit).map(event => ({
+          id: event.id, kind: event.kind, amount_cents: event.amount_cents,
+          previous_cents: event.previous_cents, created_at: event.created_at,
+          product: { slug: event.product.slug, title: event.product.title, kind: event.product.kind, engine: event.product.engine, cover_url: event.product.cover_url },
+          seller: { username: event.seller.username, display_name: event.seller.display_name },
+        }));
+        return ctx.json({ events, more: rows.length > query.limit,
+          oldest: events.length ? Math.min(...events.map(event => event.id)) : null,
+          newest: events.length ? Math.max(...events.map(event => event.id)) : null,
+        });
+      }
       const range = marketRange(url.searchParams.get("range"));
       const limit = Math.max(
         1,

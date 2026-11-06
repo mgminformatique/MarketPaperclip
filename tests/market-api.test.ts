@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import { marketApi } from "../lib/market/api";
 import { rateLimit, siteOrigin, type Config } from "../lib/market/server";
 import { publicConfig } from "../lib/market/config";
+import { mergeFeedEvents, matchesFeedFilter } from "../lib/market/feed";
+import type { MarketEvent } from "../lib/market/market";
 import {
   emptyOverview,
   marketRange,
@@ -185,6 +187,74 @@ test("Trending keeps the database rank and drops products that are no longer pub
     ["First", "Second"],
   );
   assert.equal(b.products[0].market.acquisitions, 9);
+});
+
+const feedEvent = (id: number, kind: MarketEvent["kind"] = "listed", amount = 100): MarketEvent => ({
+  id, kind, amount_cents: amount, previous_cents: null, created_at: "2026-11-05T12:00:00Z",
+  product: { slug: "public-model", title: "Public model", kind: "agent", engine: "Claude", cover_url: null },
+  seller: { username: "creator", display_name: "Creator" },
+});
+test("Feed stays honest when no database is configured", async () => {
+  const response = await marketApi(request("market/feed"), {});
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { events: [], more: false, oldest: null, newest: null, demo: true });
+});
+test("Public feed reads published listings and explicitly whitelists event fields", async () => {
+  const calls = network(call => {
+    if (call.url.pathname === "/rest/v1/market_events") return Response.json([
+      { ...feedEvent(5), buyer_id: buyer, email: "must-not-leak@example.test", product: { ...feedEvent(5).product, storage_path: "private.zip" }, seller: { ...feedEvent(5).seller, email: "private@example.test" } },
+      feedEvent(4), feedEvent(3),
+    ]);
+  });
+  const response = await marketApi(request("market/feed?limit=2"), base);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { events: [feedEvent(5), feedEvent(4)], more: true, oldest: 4, newest: 5 });
+  const query = calls.find(call => call.url.pathname === "/rest/v1/market_events")!.url.searchParams;
+  assert.equal(query.get("product.status"), "eq.published");
+  assert.equal(query.get("order"), "id.desc");
+  assert.equal(query.get("limit"), "3");
+  assert.ok(query.get("select")!.includes("!inner"));
+});
+test("Feed history uses an exclusive cursor and listing filter", async () => {
+  const calls = network(call => call.url.pathname === "/rest/v1/market_events" ? Response.json([feedEvent(2)]) : undefined);
+  const response = await marketApi(request("market/feed?before=3&filter=listings"), base);
+  assert.equal(response.status, 200);
+  const query = calls.find(call => call.url.pathname === "/rest/v1/market_events")!.url.searchParams;
+  assert.equal(query.get("id"), "lt.3");
+  assert.equal(query.get("kind"), "in.(listed,relisted)");
+  assert.equal(query.get("order"), "id.desc");
+});
+test("Live feed walks forward in order without skipping a burst; sales exclude free acquisitions", async () => {
+  const calls = network(call => call.url.pathname === "/rest/v1/market_events" ? Response.json([feedEvent(6,"sold"),feedEvent(7,"sold"),feedEvent(8,"sold")]) : undefined);
+  const response = await marketApi(request("market/feed?after=5&limit=2&filter=sales"), base);
+  assert.deepEqual(await response.json(), { events: [feedEvent(6,"sold"),feedEvent(7,"sold")], more: true, oldest: 6, newest: 7 });
+  const query = calls.find(call => call.url.pathname === "/rest/v1/market_events")!.url.searchParams;
+  assert.equal(query.get("id"), "gt.5");
+  assert.equal(query.get("kind"), "eq.sold");
+  assert.equal(query.get("amount_cents"), "gt.0");
+  assert.equal(query.get("order"), "id.asc");
+});
+test("Invalid and conflicting feed cursors are rejected before querying market data", async () => {
+  const calls = network(() => { throw Error("No data request expected"); });
+  for (const query of ["before=0", "before=-2", "after=NaN", "after=1.5", "before=2&after=1", "limit=0", "limit=61", "filter=private", "after=9007199254740992"])
+    assert.equal((await marketApi(request("market/feed?" + query), base)).status, 400, query);
+  assert.ok(!calls.some(call => call.url.pathname === "/rest/v1/market_events"));
+});
+test("A feed database error remains generic and is never reported as an empty successful feed", async () => {
+  network(call => call.url.pathname === "/rest/v1/market_events" ? Response.json({ message:"private-database-details",code:"XX000" },{status:500}) : undefined);
+  const response = await marketApi(request("market/feed"), base);
+  assert.equal(response.status, 500);
+  assert.ok(!(await response.text()).includes("private-database-details"));
+});
+test("Overlapping feed pages keep chronological order and one copy of every record", () => {
+  assert.deepEqual(mergeFeedEvents([feedEvent(3),feedEvent(2)],[feedEvent(1),feedEvent(3),feedEvent(4)]).map(event => event.id), [1,2,3,4]);
+});
+test("Feed filters distinguish actual paid sales, free acquisitions and listing announcements", () => {
+  assert.ok(matchesFeedFilter(feedEvent(1,"sold",100),"sales"));
+  assert.ok(!matchesFeedFilter(feedEvent(2,"sold",0),"sales"));
+  assert.ok(!matchesFeedFilter(feedEvent(3,"listed",100),"sales"));
+  assert.ok(matchesFeedFilter(feedEvent(4,"relisted"),"listings"));
+  assert.ok(matchesFeedFilter(feedEvent(5,"offer"),"all"));
 });
 
 test("Product pages carry market stats and activity, and survive a stats failure", async () => {
