@@ -1,5 +1,15 @@
 # MarketPaperclip — Handoff
 
+## Feed interactif — production du 5 novembre 2026 au soir
+
+Code **`5c57d17`** sur `main`, déploiement Netlify **`6aed2748dbb5f99aa0f9cedb`**, état `ready`, publié le **6 novembre à 01 h 03 UTC** (5 novembre à 20 h 03 HE). Page **https://marketpaperclip.com/feed**, accessible depuis la navigation et le libellé EN DIRECT de la banderole d'Explore. Le déploiement contient aussi les profils livrés précédemment; aucune migration ni nouvelle planification.
+
+Grande version de la banderole : mêmes événements, badges et palette, carrousel de droite à gauche, lecture toutes les cinq secondes, glissement, flèches, clavier, molette horizontale et curseur d'historique. Actualisation des données toutes les quinze secondes; les lots d'arrivées entrent un à un. La consultation manuelle reste sur l'événement choisi, avec compteur des nouvelles arrivées et retour au direct. Historique paginé, reprise après erreur et mouvement réduit pris en charge. Les copies visuelles nécessaires pour boucler un fil court ne comptent jamais comme de nouvelles ventes.
+
+API publique `GET /api/market/feed`, filtres Tout / Mises en vente / Ventes payées, curseur `before` pour le passé ou `after` pour les nouveaux événements. Champs explicitement limités, annonces publiées seulement, aucune donnée d'acheteur ou de commande sélectionnée. Le contrôle de production retrouve une mise en vente réelle de Paperclip Test et **zéro vente payée**; aucun événement n'a été fabriqué pour remplir la page.
+
+Validation : TypeScript, **124 tests**, build, CI GitHub **42082933699** pour les profils précédents et **42141102276** pour le Feed, cette dernière réussie. **60 contrôles publics** après déploiement; pages et métadonnées FR/EN, sitemap et trois filtres API vérifiés. Le client compilé publié passe la navigation, arrivées successives, maintien de position, retour au direct, clavier, molette, curseur, pagination, erreur/réessai et absence de doublons en FR/EN avec réponses isolées. Un ou deux événements, prix masqués et mouvement réduit sont aussi contrôlés sur le build local. Aucun paiement ni écriture de données de test en production. Le navigateur de l'opérateur est indisponible : ces contrôles de DOM ne constituent pas une vérification visuelle desktop/mobile. Voir [MARKET.md](MARKET.md).
+
 ## Profils pour tous les membres et modèles depuis le profil — 5 novembre 2026
 
 Code **`705fe5f`** sur `main`, déploiement Netlify **`6aecc872dd926bc802287a73`**, état `ready`, publié à **18 h 18 UTC** sur https://marketpaperclip.com. Aucune migration nécessaire : les profils, photos, couvertures et publications utilisent les tables et droits de la migration 008 existante. Aucune fonction planifiée.
