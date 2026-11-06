@@ -3,18 +3,21 @@ import assert from 'node:assert/strict';
 
 const event = id => ({ id, kind:'listed', amount_cents:100 * id, previous_cents:null, created_at:`2026-11-05T12:00:${String(id).padStart(2,'0')}Z`, product:{slug:'feed-model-'+id,title:'Feed model '+id,kind:'agent',engine:'Claude',cover_url:null},seller:{username:'fixture-creator',display_name:'Fixture Creator'} });
 export function createFeedFixture(mode) {
-  assert.ok(['full','reduced','hidden-prices','two','single'].includes(mode));
+  assert.ok(['full','reduced','hidden-prices','two','single','demo'].includes(mode));
   const records = mode === 'single' ? [event(6)] : mode === 'two' ? [event(5),event(6)] : [event(4),event(5),event(6)];
   const requests = [];
   const intervals = new Map(), timeouts = new Map();
   let timerId = 100000, now = Date.now(), failNext = false;
+  let allowReal = mode !== 'demo';
   const fixture = {
-    mode, requests, initialPath:'/feed',
+    mode, requests, initialPath:mode === 'demo' ? '/feed?demo=1' : '/feed',
+    allowReal() { allowReal=true; },
+    blockReal() { allowReal=false; },
     addArrivals() { records.push(event(7),event(8)); },
     addLiveArrival() { records.push(event(9)); },
     failNext() { failNext = true; },
     async poll() {
-      const entry = [...timeouts].find(([,value]) => value.delay === 15000 || value.delay === 1100);
+      const entry = [...timeouts].find(([,value]) => [4000,15000,1100].includes(value.delay));
       assert.ok(entry,'A live poll is scheduled');
       timeouts.delete(entry[0]);
       await entry[1].callback();
@@ -31,7 +34,7 @@ export function createFeedFixture(mode) {
       };
       w.clearInterval = id => { if (!intervals.delete(id)) clearInterval(id); };
       w.setTimeout = (callback,delay,...args) => {
-        if ([1100,15000].includes(delay)) { const id=timerId++; timeouts.set(id,{callback,delay}); return id; }
+        if ([1100,4000,15000].includes(delay)) { const id=timerId++; timeouts.set(id,{callback,delay}); return id; }
         return setTimeout(callback,delay,...args);
       };
       w.clearTimeout = id => { if (!timeouts.delete(id)) clearTimeout(id); };
@@ -63,6 +66,7 @@ export function createFeedFixture(mode) {
       if(path==='me')return Response.json({user:null});
       if(path==='config')return Response.json({accounts:true,payments:false,demo:false,github:false,google:false,prices:mode!=='hidden-prices',feeBps:1500});
       if(path==='market/feed') {
+        assert.ok(allowReal,'A demo must never request genuine market events');
         requests.push(url.search);
         if(failNext){failNext=false;return Response.json({error:'Temporary fixture interruption'},{status:503});}
         if(url.searchParams.get('filter')==='sales')return Response.json({events:[],more:false,oldest:null,newest:null});
@@ -84,6 +88,48 @@ export async function checkFeedClient({w,fixture,until,click,errors,locale}) {
   const position=()=>doc.querySelector('.mk-feed-position strong')?.textContent;
   const ids=()=>new Set([...doc.querySelectorAll('.mk-feed-slide')].map(node=>node.dataset.eventId));
   const button=label=>doc.querySelector(`[aria-label="${label}"]`);
+  if(fixture.mode==='demo') {
+    await until(()=>doc.querySelector('.mk-feed-demo')&&ids().size===6&&position()==='06','temporary demo carousel');
+    assert.equal(fixture.requests.length,0,'The demo has no live feed requests');
+    assert.ok(doc.querySelector('.mk-feed-demo-notice'));
+    assert.ok([...doc.querySelectorAll('.mk-feed-slide')].every(card=>card.querySelector('.mk-feed-demo-badge')));
+    assert.ok([...ids()].every(id=>Number(id)>800000000));
+    click(doc.querySelector('.mk-feed-demo-add'));
+    await new Promise(resolve=>setTimeout(resolve,0));fixture.arrive();
+    await until(()=>ids().size===7,'manual simulated sale');
+    click(button(locale==='fr'?'Événement précédent':'Previous event'));
+    await until(()=>doc.querySelector('.mk-feed-play').getAttribute('aria-pressed')==='false','demo historical browsing pauses playback');
+    const paused=position();
+    click(doc.querySelector('.mk-feed-demo-add'));
+    await new Promise(resolve=>setTimeout(resolve,0));fixture.arrive();
+    await until(()=>ids().size===8&&doc.querySelector('.mk-feed-unread'),'demo respects historical browsing');
+    assert.equal(position(),paused);
+    click(doc.querySelector('.mk-feed-return'));
+    await until(()=>position()==='08','return to demo arrivals');
+    await fixture.poll();fixture.arrive();
+    await until(()=>ids().size===9,'automatic simulated arrival');
+    click(doc.querySelector('.mk-feed-slide.is-selected .mk-feed-title'));
+    await until(()=>doc.querySelector('.mk-feed-demo-preview'),'safe demo model preview');
+    assert.equal(w.location.pathname,'/feed');
+    assert.equal(w.location.search.includes('demo=1'),true);
+    assert.ok(!doc.querySelector('.mk-feed-demo-preview a[href*="checkout"]'));
+    click(doc.querySelector('.mk-feed-demo-preview .modal-close'));
+    await until(()=>!doc.querySelector('.mk-feed-demo-preview'),'preview closed');
+    click([...doc.querySelectorAll('.mk-feed-filters button')][2]);
+    await until(()=>doc.querySelectorAll('.mk-feed-slide .mk-kind-sold').length>0&&!doc.querySelector('.mk-feed-slide .mk-kind-listed'),'demo paid-sales filter');
+    assert.equal(fixture.requests.length,0);
+    fixture.allowReal();
+    click(doc.querySelector('.mk-feed-demo-exit'));
+    await until(()=>!doc.querySelector('.mk-feed-demo')&&ids().size===3&&[...ids()].every(id=>Number(id)<800000000),'back to the genuine feed without test records');
+    const reads=fixture.requests.length;assert.ok(reads>0);
+    fixture.blockReal();
+    click(doc.querySelector('.mk-feed-demo-start'));
+    await until(()=>doc.querySelector('.mk-feed-demo')&&ids().size===6,'fresh demo after reopening');
+    assert.ok([...ids()].every(id=>Number(id)<=800000016));
+    assert.equal(fixture.requests.length,reads);
+    assert.deepEqual(errors,[]);
+    console.log(`PASS temporary demo labels, manual/automatic test arrivals, history, preview, filters, no live API reads, clean exit and reset (${locale}; no server writes)`);return;
+  }
   await until(()=>ids().size===(fixture.mode==='single'?1:fixture.mode==='two'?2:3)&&position()===(fixture.mode==='single'?'01':fixture.mode==='two'?'02':'03'),'initial feed and latest item');
   assert.ok(doc.querySelector('.sidebar a[href*="/feed"]'));
   assert.equal(doc.querySelector('.mk-feed .mk-feed-play').getAttribute('aria-pressed'),fixture.mode==='reduced'?'false':'true');

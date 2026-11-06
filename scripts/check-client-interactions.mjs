@@ -8,7 +8,7 @@
 // it never signs in a real user or sends a write to production.
 // profileFixture:"owner"|"visitor"|"anonymous" checks profile editing and model
 // publication using local response fixtures; never writes to the live API.
-// feedFixture:"full"|"single"|"two"|"hidden-prices"|"reduced" checks the real
+// feedFixture:"full"|"single"|"two"|"hidden-prices"|"reduced"|"demo" checks the real
 // carousel with isolated responses and controlled timers, without API writes.
 import assert from "node:assert/strict";
 import vm from "node:vm";
@@ -84,7 +84,8 @@ async function get(input, options = {}) {
   }
   return response;
 }
-const initialUrl = origin + (feedQA ? feedQA.initialPath : profileQA ? profileQA.initialPath : studioFixture ? "/studio" : "/") + "?lang=" + initialLocale;
+const initialPath = feedQA ? feedQA.initialPath : profileQA ? profileQA.initialPath : studioFixture ? "/studio" : "/";
+const initialUrl = origin + initialPath + (initialPath.includes("?") ? "&" : "?") + "lang=" + initialLocale;
 const html = await (await get(initialUrl)).text();
 const errors = [];
 const virtualConsole = new VirtualConsole();

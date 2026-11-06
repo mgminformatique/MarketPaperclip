@@ -7,8 +7,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent,
 } from "react";
 import useEmblaCarousel from "embla-carousel-react";
+import { useSearchParams } from "next/navigation";
 import {
   Activity,
   ArrowLeft,
@@ -23,13 +25,20 @@ import {
   Package,
   Pause,
   Play,
+  Plus,
   Radio,
   RotateCcw,
   Tag,
 } from "lucide-react";
 import Link from "./navigation-link";
 import { useI18n } from "./i18n";
-import { api, Avatar, Notice, usePricesVisible } from "./market-ui";
+import { api, Avatar, Modal, Notice, usePricesVisible } from "./market-ui";
+import {
+  createFeedDemo,
+  FEED_DEMO_ENABLED,
+  FEED_DEMO_POLL_MS,
+  type FeedDemo,
+} from "../lib/market/feed-demo";
 import { EventAmount, EventKind } from "./market-floor";
 import { timeAgo, type MarketEvent } from "../lib/market/market";
 import {
@@ -64,6 +73,7 @@ function useFeedData(
   filter: FeedFilter,
   onArrival: (event: MarketEvent, previous: number | null) => void,
   onHistory: (id: number) => void,
+  demoSource: FeedDemo | null,
 ) {
   const [data, setData] = useState<FeedState>(emptyState);
   const callback = useRef(onArrival);
@@ -87,7 +97,19 @@ function useFeedData(
     let pollTimer: ReturnType<typeof setTimeout>;
     const path = (cursor = "") =>
       `market/feed?filter=${filter}&limit=${FEED_PAGE_SIZE}${cursor}`;
-    const schedule = (ms = FEED_POLL_MS) => {
+    const read = (cursor = "") => {
+      if (!demoSource) return api<FeedPage>(path(cursor));
+      const query = new URLSearchParams(cursor);
+      return Promise.resolve(
+        demoSource.page({
+          filter,
+          limit: FEED_PAGE_SIZE,
+          before: Number(query.get("before")) || undefined,
+          after: Number(query.get("after")) || undefined,
+        }),
+      );
+    };
+    const schedule = (ms = demoSource ? FEED_DEMO_POLL_MS : FEED_POLL_MS) => {
       if (active) pollTimer = setTimeout(poll, ms);
     };
     async function initial() {
@@ -95,7 +117,7 @@ function useFeedData(
       busy = true;
       setData(emptyState);
       try {
-        const page = await api<FeedPage>(path());
+        const page = await read();
         if (!active) return;
         const events = mergeFeedEvents(
           [],
@@ -119,7 +141,7 @@ function useFeedData(
         schedule();
       }
     }
-    async function poll() {
+    async function poll(automatic = true) {
       clearTimeout(pollTimer);
       if (!active || busy) return;
       if (document.hidden) {
@@ -134,9 +156,8 @@ function useFeedData(
       let catchUp = false;
       try {
         const hadCursor = newest !== null;
-        const page = await api<FeedPage>(
-          path(hadCursor ? "&after=" + newest : ""),
-        );
+        if (demoSource && automatic) demoSource.advance();
+        const page = await read(hadCursor ? "&after=" + newest : "");
         if (!active) return;
         const additions = mergeFeedEvents([], page.events).filter(
           (event) => matchesFeedFilter(event, filter) && !seen.has(event.id),
@@ -157,7 +178,13 @@ function useFeedData(
           setData((value) => ({ ...value, error: (error as Error).message }));
       } finally {
         busy = false;
-        schedule(catchUp ? FEED_ARRIVAL_MS : FEED_POLL_MS);
+        schedule(
+          catchUp
+            ? FEED_ARRIVAL_MS
+            : demoSource
+              ? FEED_DEMO_POLL_MS
+              : FEED_POLL_MS,
+        );
       }
     }
     async function older() {
@@ -165,7 +192,7 @@ function useFeedData(
       olderBusy = true;
       setData((value) => ({ ...value, loadingOlder: true }));
       try {
-        const page = await api<FeedPage>(path("&before=" + oldest));
+        const page = await read("&before=" + oldest);
         if (!active) return [];
         const events = page.events.filter((event) =>
           matchesFeedFilter(event, filter),
@@ -192,7 +219,7 @@ function useFeedData(
     operations.current = {
       older,
       retry: () => {
-        if (initialized) void poll();
+        if (initialized) void poll(false);
         else void initial();
       },
     };
@@ -216,7 +243,7 @@ function useFeedData(
       clearInterval(arrivals);
       operations.current = null;
     };
-  }, [filter]);
+  }, [filter, demoSource]);
   return {
     ...data,
     loadOlder: () => operations.current?.older() ?? Promise.resolve([]),
@@ -225,8 +252,16 @@ function useFeedData(
 }
 
 export function MarketFeed() {
+  const query = useSearchParams();
+  const demo = FEED_DEMO_ENABLED && query.get("demo") === "1";
+  return <MarketFeedCarousel key={demo ? "demo" : "live"} demo={demo} />;
+}
+
+function MarketFeedCarousel({ demo }: { demo: boolean }) {
   const { t, locale } = useI18n();
   const prices = usePricesVisible();
+  const demoSource = useMemo(() => (demo ? createFeedDemo() : null), [demo]);
+  const [preview, setPreview] = useState<MarketEvent | null>(null);
   const [filter, setFilter] = useState<FeedFilter>("all");
   const [playing, setPlaying] = useState(true);
   const [hover, setHover] = useState(false);
@@ -261,13 +296,17 @@ export function MarketFeed() {
     (id) => {
       wanted.current = { id };
     },
+    demoSource,
   );
   // Like the small ticker, a short feed uses visual copies for a seamless
   // loop. Copies never count as events and are hidden from assistive technology.
   const slides = useMemo(
     () =>
       data.events.length > 0 && data.events.length < 3
-        ? Array.from({ length: Math.ceil(3 / data.events.length) }, () => data.events).flat()
+        ? Array.from(
+            { length: Math.ceil(3 / data.events.length) },
+            () => data.events,
+          ).flat()
         : data.events,
     [data.events],
   );
@@ -318,8 +357,7 @@ export function MarketFeed() {
     setSelected(active % data.events.length);
   }, [carousel, data.events, slides, reducedMotion]);
   useEffect(() => {
-    if (!carousel || !playing || hover || focused || slides.length < 2)
-      return;
+    if (!carousel || !playing || hover || focused || slides.length < 2) return;
     const timer = setInterval(() => {
       if (
         !document.hidden &&
@@ -328,7 +366,15 @@ export function MarketFeed() {
         carousel.scrollNext(reducedMotion);
     }, FEED_PLAY_MS);
     return () => clearInterval(timer);
-  }, [carousel, playing, hover, focused, data.events.length, slides.length, reducedMotion]);
+  }, [
+    carousel,
+    playing,
+    hover,
+    focused,
+    data.events.length,
+    slides.length,
+    reducedMotion,
+  ]);
   useEffect(() => {
     if (!carousel) return;
     const element = carousel.rootNode();
@@ -374,8 +420,19 @@ export function MarketFeed() {
     setFilter(value);
   };
   const active = data.events[selected];
+  const inspect = (
+    event: MarketEvent,
+    click: MouseEvent<HTMLAnchorElement>,
+  ) => {
+    if (!demo) return;
+    click.preventDefault();
+    setPreview(event);
+  };
   return (
-    <section className="mk-feed" aria-label={t("Feed du marché")}>
+    <section
+      className={"mk-feed" + (demo ? " mk-feed-demo" : "")}
+      aria-label={t("Feed du marché")}
+    >
       <div className="mk-feed-heading">
         <div>
           <span className="eyebrow">{t("LE MARCHÉ EN MOUVEMENT")}</span>
@@ -386,11 +443,54 @@ export function MarketFeed() {
             {t("La banderole du marché, en grand. Chaque arrivée a sa place.")}
           </p>
         </div>
-        <span className="mk-feed-live">
-          <span className="mk-live-dot" />
-          {t("EN DIRECT")}
-        </span>
+        <div className="mk-feed-mode-actions">
+          <span className="mk-feed-live">
+            <span className="mk-live-dot" />
+            {t(demo ? "DÉMO" : "EN DIRECT")}
+          </span>
+          {!demo && FEED_DEMO_ENABLED && (
+            <Link
+              className="button secondary small mk-feed-demo-start"
+              href="/feed?demo=1"
+            >
+              <Play size={13} />
+              {t("Essayer la démo")}
+            </Link>
+          )}
+        </div>
       </div>
+      {demo && (
+        <div className="mk-feed-demo-notice" role="status">
+          <div>
+            <strong>{t("MODE DÉMO — VENTES FICTIVES")}</strong>
+            <p>
+              {t(
+                "Exemples pour essayer le carrousel. Les arrivées sont simulées et aucun paiement n’est effectué.",
+              )}
+            </p>
+          </div>
+          <div className="mk-feed-demo-actions">
+            <button
+              type="button"
+              className="button primary small mk-feed-demo-add"
+              disabled={!!demoSource?.full}
+              onClick={() => {
+                if (demoSource?.addSale()) data.retry();
+              }}
+            >
+              <Plus size={14} />
+              {t("Ajouter une vente test")}
+            </button>
+            <Link
+              className="button secondary small mk-feed-demo-exit"
+              href="/feed"
+            >
+              {t("Revenir au Feed réel")}
+              <ArrowUpRight size={14} />
+            </Link>
+          </div>
+        </div>
+      )}
       <div className="mk-feed-toolbar">
         <div
           className="mk-feed-filters"
@@ -538,6 +638,11 @@ export function MarketFeed() {
                     <div className="mk-feed-card-copy">
                       <div className="mk-feed-event-heading">
                         <EventKind event={event} />
+                        {demo && (
+                          <span className="mk-feed-demo-badge">
+                            {t("TEST")}
+                          </span>
+                        )}
                         <time
                           dateTime={event.created_at}
                           title={new Date(event.created_at).toLocaleString(
@@ -557,7 +662,12 @@ export function MarketFeed() {
                       <Link
                         className="mk-feed-title"
                         tabIndex={index >= data.events.length ? -1 : undefined}
-                        href={"/agents/" + event.product.slug}
+                        href={
+                          demo
+                            ? "/feed?demo=1"
+                            : "/agents/" + event.product.slug
+                        }
+                        onClick={(click) => inspect(event, click)}
                       >
                         <h2>{event.product.title}</h2>
                         <ArrowUpRight size={23} />
@@ -565,7 +675,12 @@ export function MarketFeed() {
                       <Link
                         className="mk-feed-seller"
                         tabIndex={index >= data.events.length ? -1 : undefined}
-                        href={"/creators/" + event.seller.username}
+                        href={
+                          demo
+                            ? "/feed?demo=1"
+                            : "/creators/" + event.seller.username
+                        }
+                        onClick={(click) => inspect(event, click)}
                       >
                         <Avatar name={event.seller.display_name} />
                         <span>
@@ -593,7 +708,12 @@ export function MarketFeed() {
                           </span>
                         )}
                         <Link
-                          href={"/agents/" + event.product.slug}
+                          href={
+                            demo
+                              ? "/feed?demo=1"
+                              : "/agents/" + event.product.slug
+                          }
+                          onClick={(click) => inspect(event, click)}
                           className="mk-feed-open"
                           tabIndex={
                             index >= data.events.length ? -1 : undefined
@@ -607,7 +727,10 @@ export function MarketFeed() {
                       </div>
                     </div>
                     <Link
-                      href={"/agents/" + event.product.slug}
+                      href={
+                        demo ? "/feed?demo=1" : "/agents/" + event.product.slug
+                      }
+                      onClick={(click) => inspect(event, click)}
                       className="mk-feed-art"
                       tabIndex={-1}
                       aria-hidden="true"
@@ -730,9 +853,43 @@ export function MarketFeed() {
       )}
       <p className="mk-feed-footnote">
         {t(
-          "Les ventes sont confirmées par paiement. Les acheteurs restent privés.",
+          demo
+            ? "Les événements de cette démonstration sont fictifs."
+            : "Les ventes sont confirmées par paiement. Les acheteurs restent privés.",
         )}
       </p>
+      {demo && preview && (
+        <Modal
+          title="Aperçu de démonstration"
+          className="mk-feed-demo-preview"
+          onClose={() => setPreview(null)}
+        >
+          {preview.product.cover_url && (
+            <img
+              className="mk-feed-demo-preview-art"
+              src={preview.product.cover_url}
+              alt=""
+            />
+          )}
+          <span className="mk-feed-demo-badge">{t("TEST")}</span>
+          <h3>{preview.product.title}</h3>
+          <p className="muted">
+            {preview.product.engine} · {preview.seller.display_name}
+          </p>
+          <Notice>
+            {t(
+              "Fiche d’exemple : aucun achat ni téléchargement n’est associé à ce modèle de test.",
+            )}
+          </Notice>
+          <button
+            type="button"
+            className="button primary"
+            onClick={() => setPreview(null)}
+          >
+            {t("Continuer la démo")}
+          </button>
+        </Modal>
+      )}
     </section>
   );
 }

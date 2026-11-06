@@ -958,5 +958,16 @@
   "Charger l’historique plus ancien": "Load older history",
   "Les ventes sont confirmées par paiement. Les acheteurs restent privés.": "Sales are confirmed by payment. Buyers stay private.",
   "Le feed est momentanément indisponible. Réessayez dans un instant.": "The feed is temporarily unavailable. Please try again shortly.",
-  "Pause": "Pause"
+  "Pause": "Pause",
+  "DÉMO": "DEMO",
+  "Essayer la démo": "Try the demo",
+  "MODE DÉMO — VENTES FICTIVES": "DEMO MODE — SIMULATED SALES",
+  "Exemples pour essayer le carrousel. Les arrivées sont simulées et aucun paiement n’est effectué.": "Examples to try the carousel. Arrivals are simulated and no payments take place.",
+  "Ajouter une vente test": "Add a test sale",
+  "Revenir au Feed réel": "Back to the real Feed",
+  "TEST": "TEST",
+  "Les événements de cette démonstration sont fictifs.": "The events in this demo are simulated.",
+  "Aperçu de démonstration": "Demo preview",
+  "Fiche d’exemple : aucun achat ni téléchargement n’est associé à ce modèle de test.": "Example listing: no purchase or download is associated with this test model.",
+  "Continuer la démo": "Continue the demo"
 }

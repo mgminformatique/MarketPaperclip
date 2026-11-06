@@ -6,6 +6,7 @@ import { marketApi } from "../lib/market/api";
 import { rateLimit, siteOrigin, type Config } from "../lib/market/server";
 import { publicConfig } from "../lib/market/config";
 import { mergeFeedEvents, matchesFeedFilter } from "../lib/market/feed";
+import { createFeedDemo, FEED_DEMO_ID_BASE } from "../lib/market/feed-demo";
 import type { MarketEvent } from "../lib/market/market";
 import {
   emptyOverview,
@@ -255,6 +256,48 @@ test("Feed filters distinguish actual paid sales, free acquisitions and listing 
   assert.ok(!matchesFeedFilter(feedEvent(3,"listed",100),"sales"));
   assert.ok(matchesFeedFilter(feedEvent(4,"relisted"),"listings"));
   assert.ok(matchesFeedFilter(feedEvent(5,"offer"),"all"));
+});
+
+test("Temporary demo has explicit sample identities and isolated cursor pagination", () => {
+  const source = createFeedDemo(Date.parse("2026-11-06T01:00:00Z"));
+  const first = source.page({filter:"all"});
+  assert.equal(first.demo, true);
+  assert.equal(first.events.length, 6);
+  assert.ok(first.more);
+  assert.ok(first.events.every(event => event.id > FEED_DEMO_ID_BASE && event.product.title.includes("Démo") && event.seller.username.startsWith("demo-")));
+  const second = source.page({filter:"all",before:first.oldest!});
+  const third = source.page({filter:"all",before:second.oldest!});
+  assert.equal(new Set([...first.events,...second.events,...third.events].map(event => event.id)).size,16);
+  assert.equal(third.more,false);
+});
+test("Adding a demo sale supplies one new event without touching the genuine feed", () => {
+  const source = createFeedDemo();
+  const first = source.page({filter:"all"});
+  assert.ok(source.addSale());
+  const next = source.page({filter:"all",after:first.newest!});
+  assert.equal(next.events.length,1);
+  assert.equal(next.events[0].kind,"sold");
+  assert.ok(next.events[0].amount_cents! > 0);
+  assert.equal(next.demo,true);
+  assert.equal(source.page({filter:"sales"}).events.every(event => event.kind==="sold" && event.amount_cents!>0),true);
+  assert.equal(source.page({filter:"listings"}).events.every(event => ["listed","relisted"].includes(event.kind)),true);
+});
+test("Demo autoplay finishes its scenario and manual additions stay bounded", () => {
+  const source = createFeedDemo();
+  for(let index=0;index<8;index++) assert.ok(source.advance());
+  assert.equal(source.advance(),false);
+  while(!source.full) assert.ok(source.addSale());
+  assert.equal(source.addSale(),false);
+  assert.equal(source.page({filter:"all"}).newest,FEED_DEMO_ID_BASE+64);
+});
+test("Reloading the demo resets it and returned examples cannot mutate another view", () => {
+  const source = createFeedDemo();
+  const page = source.page({filter:"all"});
+  const title = page.events[0].product.title;
+  page.events[0].product.title = "Changed outside the demo";
+  assert.equal(source.page({filter:"all"}).events[0].product.title,title);
+  source.addSale();
+  assert.equal(createFeedDemo().page({filter:"all"}).newest,FEED_DEMO_ID_BASE+16);
 });
 
 test("Product pages carry market stats and activity, and survive a stats failure", async () => {
