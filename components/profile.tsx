@@ -32,10 +32,10 @@ import {
   money,
   POST_IMAGE_LIMIT,
   type Post,
-  type PostProduct,
   type Product,
 } from "../lib/market/model";
 import { timeAgo } from "../lib/market/market";
+import { MarketModelCard, type ModelCardControls } from "./market-model-card";
 
 export type PublicProfile = {
   id?: string;
@@ -76,7 +76,11 @@ async function prepareImage(file: File, maxSide: number): Promise<Blob> {
 }
 function upload(path: string, blob: Blob) {
   const form = new FormData();
-  form.append("file", blob, blob.type === "image/png" ? "image.png" : "image.jpg");
+  form.append(
+    "file",
+    blob,
+    blob.type === "image/png" ? "image.png" : "image.jpg",
+  );
   return api<{ url: string | null }>(path, form);
 }
 
@@ -169,7 +173,11 @@ function PictureModal({
             disabled={busy}
             onClick={() => input.current?.click()}
           >
-            {busy ? <Loader2 className="spin" size={16} /> : <ImagePlus size={16} />}
+            {busy ? (
+              <Loader2 className="spin" size={16} />
+            ) : (
+              <ImagePlus size={16} />
+            )}
             {t(current ? " Changer l’image" : " Choisir une image")}
           </button>
           {current && (
@@ -178,7 +186,10 @@ function PictureModal({
               className="button secondary"
               disabled={busy}
               onClick={() =>
-                run(async () => (await api("profile/" + kind, undefined, "DELETE")).url)
+                run(
+                  async () =>
+                    (await api("profile/" + kind, undefined, "DELETE")).url,
+                )
               }
             >
               <Trash2 size={16} />
@@ -190,8 +201,14 @@ function PictureModal({
       <FilePicker
         input={input}
         onFiles={([file]) =>
-          run(async () =>
-            (await upload("profile/" + kind, await prepareImage(file, kind === "avatar" ? 640 : 2000))).url,
+          run(
+            async () =>
+              (
+                await upload(
+                  "profile/" + kind,
+                  await prepareImage(file, kind === "avatar" ? 640 : 2000),
+                )
+              ).url,
           )
         }
       />
@@ -259,7 +276,9 @@ export function ProfilePhoto({
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   if (!owner)
-    return <Avatar large name={profile.display_name} src={profile.avatar_url} />;
+    return (
+      <Avatar large name={profile.display_name} src={profile.avatar_url} />
+    );
   return (
     <span className="mk-avatar-edit">
       <Avatar large name={profile.display_name} src={profile.avatar_url} />
@@ -310,13 +329,20 @@ function PostComposer({
     if (attachProduct) setProductId(attachProduct.id);
   }, [attachProduct]);
   async function add(files: File[]) {
+    if (!productId) {
+      setError("Choisissez un produit publié de votre catalogue.");
+      return;
+    }
     const room = POST_IMAGE_LIMIT - images.length - uploading;
     const chosen = files.slice(0, Math.max(0, room));
     setError("");
     setUploading((n) => n + chosen.length);
     for (const file of chosen) {
       try {
-        const { url } = await upload("posts/images", await prepareImage(file, 1800));
+        const { url } = await upload(
+          "posts/images",
+          await prepareImage(file, 1800),
+        );
         if (url)
           setImages((current) =>
             current.length < POST_IMAGE_LIMIT ? [...current, url] : current,
@@ -330,13 +356,21 @@ function PostComposer({
   }
   async function publish(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (
+      !products.some(
+        (product) => product.id === productId && product.status === "published",
+      )
+    ) {
+      setError("Choisissez un produit publié de votre catalogue.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       const { post } = await api<{ post: Post }>("posts", {
         body,
         images,
-        product_id: productId || null,
+        product_id: productId,
       });
       onPosted(post);
       setBody("");
@@ -349,10 +383,18 @@ function PostComposer({
       setBusy(false);
     }
   }
-  const empty = !body.trim() && !images.length && !productId;
+  const empty = !productId;
   return (
     <form className="panel mk-panel mk-composer" onSubmit={publish}>
-      <div className="mk-composer-title"><h3>{t("Créer une publication")}</h3><span><Globe size={12} /> {t("Public")}</span></div>
+      <div className="mk-composer-title">
+        <h3>{t("Publier un produit")}</h3>
+        <span>
+          <Globe size={12} /> {t("Public")}
+        </span>
+      </div>
+      <p className="mk-composer-rule">
+        {t("Chaque publication présente un produit publié de votre catalogue.")}
+      </p>
       <div className="mk-composer-head">
         <Avatar name={profile.display_name} src={profile.avatar_url} />
         <textarea
@@ -361,7 +403,7 @@ function PostComposer({
           onChange={(e) => setBody(e.target.value)}
           maxLength={2000}
           rows={3}
-          placeholder={t("Qu’avez-vous créé ? Présentez votre prochain modèle…")}
+          placeholder={t("Ajoutez une note sur ce produit (facultatif)…")}
         />
       </div>
       {(images.length > 0 || uploading > 0) && (
@@ -373,7 +415,9 @@ function PostComposer({
                 type="button"
                 className="icon-button"
                 aria-label={t("Retirer la photo")}
-                onClick={() => setImages((current) => current.filter((x) => x !== url))}
+                onClick={() =>
+                  setImages((current) => current.filter((x) => x !== url))
+                }
               >
                 <X size={14} />
               </button>
@@ -388,20 +432,27 @@ function PostComposer({
       )}
       {error && <Notice error>{t(error)}</Notice>}
       <div className="mk-composer-tools">
-        <button type="button" className="button secondary small mk-create-model" disabled={busy || uploading > 0} onClick={onCreateModel}>
+        <button
+          type="button"
+          className="button secondary small mk-create-model"
+          disabled={busy || uploading > 0}
+          onClick={onCreateModel}
+        >
           <Plus size={15} /> {t("Modèle")}
         </button>
         <button
           type="button"
           className="button secondary small"
-          disabled={busy || images.length + uploading >= POST_IMAGE_LIMIT}
+          disabled={
+            busy || !productId || images.length + uploading >= POST_IMAGE_LIMIT
+          }
           onClick={() => input.current?.click()}
         >
           <ImagePlus size={15} />
-          {t(" Photos")}
+          {t(" Photos du produit")}
         </button>
         <select
-          aria-label={t("Agent ou bundle présenté")}
+          aria-label={t("Produit présenté")}
           value={productId}
           onChange={(e) => setProductId(e.target.value)}
           disabled={!products.length}
@@ -409,8 +460,8 @@ function PostComposer({
           <option value="">
             {t(
               products.length
-                ? "Joindre un agent ou un bundle"
-                : "Aucun agent publié à joindre",
+                ? "Choisir un produit publié"
+                : "Publiez d’abord un modèle dans votre catalogue",
             )}
           </option>
           {products.map((p) => (
@@ -432,56 +483,23 @@ function PostComposer({
   );
 }
 
-function PostListing({ product: p }: { product: PostProduct }) {
-  const { t, locale } = useI18n();
-  const showPrices = usePricesVisible();
-  return (
-    <Link className="mk-post-product" href={"/agents/" + p.slug}>
-      <span className="mk-post-product-art">
-        {p.cover_url ? (
-          <img src={p.cover_url} alt="" loading="lazy" />
-        ) : p.kind === "bundle" ? (
-          <Package size={26} />
-        ) : (
-          <Code2 size={26} />
-        )}
-      </span>
-      <span className="mk-post-product-text">
-        <small>
-          {t(p.kind === "bundle" ? `${p.agent_count} agents · Bundle` : "Agent")}
-          {" · "}
-          {t(p.engine)}
-        </small>
-        <strong>{p.title}</strong>
-        <span>{p.tagline}</span>
-      </span>
-      <span className="mk-post-product-end">
-        {showPrices && p.price_cents !== null && (
-          <b>{t(p.price_cents === 0 ? "Gratuit" : money(p.price_cents, locale))}</b>
-        )}
-        <em>
-          {t(p.kind === "bundle" ? "Voir le bundle" : "Voir l’agent")}
-          <ArrowUpRight size={14} />
-        </em>
-      </span>
-    </Link>
-  );
-}
-
 function PostCard({
   post,
   profile,
   canDelete,
   onDelete,
   onOpen,
+  controls,
 }: {
   post: Post;
   profile: PublicProfile;
   canDelete: boolean;
   onDelete: (post: Post) => void;
   onOpen: (url: string) => void;
+  controls: ModelCardControls;
 }) {
   const { t, locale } = useI18n();
+  if (!post.product || post.product.status !== "published") return null;
   return (
     <article className="panel mk-panel mk-post" id={"post-" + post.id}>
       <header className="mk-post-head">
@@ -524,7 +542,20 @@ function PostCard({
           ))}
         </div>
       )}
-      {post.product && <PostListing product={post.product} />}
+      <div className="mk-profile-product-card">
+        <MarketModelCard
+          product={{
+            ...post.product,
+            cover_url: post.product.cover_url ?? null,
+          }}
+          seller={{
+            username: profile.username,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+          }}
+          {...controls}
+        />
+      </div>
     </article>
   );
 }
@@ -539,7 +570,17 @@ export function ProfilePhotos({
   onOpen: (url: string) => void;
 }) {
   const { t } = useI18n();
-  const photos = posts.flatMap((p) => p.images).slice(0, limit);
+  const photos = [
+    ...new Set(
+      posts
+        .filter((post) => post.product?.status === "published")
+        .flatMap((post) =>
+          [post.product?.cover_url, ...post.images].filter(
+            (url): url is string => !!url,
+          ),
+        ),
+    ),
+  ].slice(0, limit);
   if (!photos.length)
     return (
       <div className="mk-empty-line">
@@ -600,11 +641,21 @@ function ForSale({
               <span>
                 <strong>{p.title}</strong>
                 <small>
-                  {t(p.kind === "bundle" ? `${p.agent_count} agents · Bundle` : "Agent")}
+                  {t(
+                    p.kind === "bundle"
+                      ? `${p.agent_count} agents · Bundle`
+                      : "Agent",
+                  )}
                 </small>
               </span>
               {showPrices && p.price_cents !== null && (
-                <b>{t(p.price_cents === 0 ? "Gratuit" : money(p.price_cents, locale))}</b>
+                <b>
+                  {t(
+                    p.price_cents === 0
+                      ? "Gratuit"
+                      : money(p.price_cents, locale),
+                  )}
+                </b>
               )}
             </Link>
           ))}
@@ -637,6 +688,7 @@ export function ProfileFeed({
   attachProduct,
   website,
   bio,
+  controls,
 }: {
   profile: PublicProfile;
   products: Product[];
@@ -653,6 +705,7 @@ export function ProfileFeed({
   attachProduct: { id: string } | null;
   website: string;
   bio: string;
+  controls: ModelCardControls;
 }) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
@@ -697,9 +750,28 @@ export function ProfileFeed({
       <aside className="mk-profile-side">
         <section className="panel mk-panel mk-profile-aside mk-profile-intro">
           <h3>{t("À propos")}</h3>
-          <p>{bio || t("Découvrez mes modèles, mes agents et les coulisses de mes créations.")}</p>
-          {website && <a href={website} target="_blank" rel="noreferrer"><Globe size={15} /><span>{website.replace(/^https:\/\//, "")}</span><ArrowUpRight size={13} /></a>}
-          {owner && <button type="button" className="button secondary small" onClick={onCreateModel}><Plus size={15} /> {t("Créer mon prochain modèle")}</button>}
+          <p>
+            {bio ||
+              t(
+                "Découvrez mes modèles, mes agents et les coulisses de mes créations.",
+              )}
+          </p>
+          {website && (
+            <a href={website} target="_blank" rel="noreferrer">
+              <Globe size={15} />
+              <span>{website.replace(/^https:\/\//, "")}</span>
+              <ArrowUpRight size={13} />
+            </a>
+          )}
+          {owner && (
+            <button
+              type="button"
+              className="button secondary small"
+              onClick={onCreateModel}
+            >
+              <Plus size={15} /> {t("Créer mon prochain modèle")}
+            </button>
+          )}
         </section>
         <ForSale products={products} onAll={() => onTab("products")} />
         <section className="panel mk-panel mk-profile-aside">
@@ -707,8 +779,12 @@ export function ProfileFeed({
             <h3>
               <Images size={15} /> {t("Photos")}
             </h3>
-            {posts.some((p) => p.images.length) && (
-              <button type="button" className="text-button" onClick={() => onTab("photos")}>
+            {posts.some((p) => p.images.length || p.product?.cover_url) && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => onTab("photos")}
+              >
                 {t("Tout voir")}
               </button>
             )}
@@ -737,12 +813,13 @@ export function ProfileFeed({
               canDelete={owner || moderator}
               onDelete={setRemoving}
               onOpen={onOpen}
+              controls={controls}
             />
           ))
         ) : (
-          <Empty icon={Newspaper} title="Aucune publication pour le moment.">
+          <Empty icon={Newspaper} title="Aucun produit partagé pour le moment.">
             {owner
-              ? "Présentez votre travail ou créez un modèle avec le bouton Modèle, juste au-dessus."
+              ? "Choisissez un produit publié ou créez un modèle avec le bouton Modèle, juste au-dessus."
               : "Ce créateur n’a encore rien publié. Découvrez ses agents et bundles."}
           </Empty>
         )}
@@ -759,7 +836,10 @@ export function ProfileFeed({
         )}
       </div>
       {removing && (
-        <Modal title="Supprimer cette publication ?" onClose={() => setRemoving(null)}>
+        <Modal
+          title="Supprimer cette publication ?"
+          onClose={() => setRemoving(null)}
+        >
           <p className="muted">
             {t("Elle disparaîtra de ce profil, avec ses photos.")}
           </p>

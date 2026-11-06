@@ -495,7 +495,7 @@ export default function Marketplace({
                 initial={initial?.product ?? undefined}
               />
             ) : pathname === "/feed" ? (
-              <MarketFeed userId={session.user?.id ?? null} onSignIn={signIn} />
+              <MarketFeed userId={session.user?.id ?? null} onSignIn={signIn} favorites={favorites} onSave={save} payments={config.payments} />
             ) : pathname === "/market" ? (
               <MarketPage favorites={favorites} save={save} />
             ) : pathname === "/creators" ? (
@@ -2025,7 +2025,7 @@ function CreatorProfile({
   }, [name]);
   if (error) return <Notice error>{t(error)}</Notice>;
   if (!data || data.profile.username !== name) return <Loading />;
-  const posts = data.posts || [];
+  const posts = (data.posts || []).filter(post => post.product?.status === "published" && post.product.seller_id === data.profile.id);
   // Every member has the same timeline, even before their first listing.
   const active: ProfileTab = tab ?? "posts";
   const reloadProfile = async () => {
@@ -2163,6 +2163,7 @@ function CreatorProfile({
           attachProduct={attachProduct}
           website={data.profile.website || ""}
           bio={data.profile.bio || ""}
+          controls={{userId:session.user?.id??null,onSignIn:signIn,favorites,onSave:save,payments:config.payments}}
         />
       </div>
       <div

@@ -109,14 +109,24 @@ export type Product = {
 export type PostProduct = Pick<
   Product,
   | "id"
+  | "seller_id"
   | "slug"
   | "title"
   | "tagline"
+  | "description"
+  | "category"
   | "kind"
   | "agent_count"
   | "engine"
+  | "version"
   | "price_cents"
   | "currency"
+  | "license"
+  | "tags"
+  | "requirements"
+  | "setup"
+  | "status"
+  | "created_at"
   | "cover_url"
 >;
 export type Post = {
@@ -159,7 +169,7 @@ export const uuid = z.string().uuid();
 export const postInput = z
   .object({
     body: z.string().trim().max(2000).default(""),
-    product_id: uuid.nullable().default(null),
+    product_id: uuid,
     images: z.array(z.string().max(500)).max(POST_IMAGE_LIMIT).default([]),
   })
   .strict();

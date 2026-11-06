@@ -8,30 +8,43 @@ const createdId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const baseModel = {
   id: publishedId, seller_id: member, slug: 'fixture-model', title: 'Published model fixture',
   tagline: 'A complete model for the profile integration checks.', description: 'A complete package with documented installation steps and clear permissions for the buyer.',
-  category: 'Développement', kind: 'agent', engine: 'Claude', version: '1.0.0', price_cents: 100,
+  category: 'Développement', kind: 'agent', engine: 'Claude', version: '1.0.0', price_cents: 500,
   currency: 'cad', license: 'MIT', tags: ['profile'], requirements: 'Node.js and Paperclip.',
   setup: 'Read the README and install the instruction bundle.', agent_count: 1, status: 'published',
   created_at: '2026-11-01T12:00:00Z', cover_url: null, product_files: null,
 };
 
 export function createProfileFixture(mode) {
-  assert.ok(['owner', 'visitor', 'anonymous'].includes(mode));
+  assert.ok(['owner', 'visitor', 'anonymous', 'public-anonymous'].includes(mode));
   const profile = { id: member, username: 'mgm-labs', display_name: 'QA Creator', bio: 'Building useful agent models.', website: '', avatar_url: null, banner_url: null };
   const models = [baseModel, { ...baseModel, id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', title: 'Private draft fixture', status: 'draft' }];
-  const posts = [];
-  const checks = { creates: 0, packageUploads: 0, submissions: 0, studioReads: 0, pictures: 0, posts: 0, profileEdits: 0 };
+  const posts = mode === 'owner' ? [] : [{id:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',author_id:member,body:'Published model',images:[],created_at:'2026-11-06T00:00:00Z',product:baseModel},{id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',author_id:member,body:'Legacy unlinked message',images:[],created_at:'2026-11-05T00:00:00Z',product:null}];
+  const checks = { creates: 0, packageUploads: 0, submissions: 0, studioReads: 0, pictures: 0, posts: 0, profileEdits: 0, favorites: 0, offers: 0, checkouts: 0, copied: [] };
   let packageAttached = false;
-  return { profile, checks, initialPath: mode === 'visitor' ? '/creators/mgm-labs' : '/profile',
+  return { profile, checks, install(w) { Object.defineProperty(w.navigator,'clipboard',{configurable:true,value:{writeText:async value=>{checks.copied.push(value);}}}); }, initialPath: ['visitor','public-anonymous'].includes(mode) ? '/creators/mgm-labs' : '/profile',
     fetch(url, options = {}) {
       if (!url.pathname.startsWith('/api/')) return;
       const path = url.pathname.slice(5), method = options.method || 'GET';
-      if (path === 'config') return Response.json({ accounts:true, payments:false, demo:false, github:false, google:false, launched:true, prices:true, feeBps:1500 });
-      if (path === 'me') return Response.json(mode === 'anonymous' ? { user:null } : {
+      if (path === 'config') return Response.json({ accounts:true, payments:true, demo:false, github:false, google:false, launched:true, prices:true, feeBps:1500 });
+      if (path === 'me') return Response.json(['anonymous','public-anonymous'].includes(mode) ? { user:null } : {
         user:{ id:mode === 'owner' ? member : other, email:'qa@example.test' },
         profile:mode === 'owner' ? profile : { ...profile, id:other, username:'qa-visitor', display_name:'QA Visitor' },
         seller:null, isAdmin:false,
       });
-      if (path === 'favorites') return Response.json({ ids:[] });
+      if (path === 'favorites') {
+        if(method!=='GET') { assert.equal(mode,'visitor');assert.equal(JSON.parse(options.body).product_id,publishedId); checks.favorites++; }
+        return Response.json({ids:[]});
+      }
+      if(path==='offers' && method==='POST') {
+        assert.equal(mode,'visitor'); const body=JSON.parse(options.body);
+        assert.equal(body.product_id,publishedId);assert.equal(body.amount_cents,375);checks.offers++;
+        return Response.json({offer:{id:'ffffffff-ffff-4fff-8fff-ffffffffffff',status:'pending'}});
+      }
+      if(path==='checkout' && method==='POST') {
+        assert.equal(mode,'visitor');const body=JSON.parse(options.body);
+        assert.deepEqual(body,{product_id:publishedId,license_accepted:true});checks.checkouts++;
+        return Response.json({error:'Ce vendeur doit activer ses paiements.'},{status:409});
+      }
       if (path === 'creators/mgm-labs') return Response.json({ profile, products:models.filter(m => m.status === 'published'), posts, more_posts:false, activity:[], stats:null });
       if (path === 'studio') {
         assert.equal(mode, 'owner', 'Only an owner may request private model data');
@@ -118,6 +131,16 @@ export async function checkProfileClient({ w, mode, fixture, until, click, error
   assert.ok(doc.querySelector('.profile-banner'));
   assert.ok(doc.querySelector('.public-profile .avatar'));
   assert.equal(doc.querySelector('#profile-tab-posts').getAttribute('aria-selected'),'true');
+  if (mode === 'public-anonymous') {
+    assert.equal(doc.querySelector('.mk-composer'),null);
+    assert.ok(!doc.body.textContent.includes('Legacy unlinked message'));
+    click(doc.querySelector('.mk-profile-product-card .mk-feed-buy-button'));
+    await until(()=>doc.querySelector('.auth-logo'),'sign in before buying from a public profile');
+    assert.equal(fixture.checks.checkouts,0);
+    assert.equal(fixture.checks.studioReads,0);
+    assert.deepEqual(errors,[]);
+    console.log(`PASS anonymous public model card opens sign-in without checkout (${locale})`);return;
+  }
   if (mode === 'visitor') {
     assert.equal(doc.querySelector('.mk-composer'),null);
     assert.equal(doc.querySelector('.mk-avatar-camera'),null);
@@ -125,12 +148,41 @@ export async function checkProfileClient({ w, mode, fixture, until, click, error
     assert.equal(doc.querySelector('.mk-profile-actions'),null);
     assert.equal(fixture.checks.studioReads,0);
     assert.ok(!doc.body.textContent.includes('Private draft fixture'));
+    assert.ok(!doc.body.textContent.includes('Legacy unlinked message'));
+    assert.ok(doc.querySelector('.mk-profile-product-card .mk-feed-description'));
+    assert.ok(doc.querySelector('.mk-profile-product-card .mk-feed-buy-button'));
+    assert.ok(doc.querySelector('.mk-profile-product-card .mk-feed-buy-license'));
+    const card=doc.querySelector('.mk-profile-product-card');
+    click(card.querySelector('.mk-model-save'));
+    await until(()=>card.querySelector('.mk-model-save').getAttribute('aria-pressed')==='true','profile card favorite');
+    assert.equal(fixture.checks.favorites,1);
+    click(card.querySelector('.mk-model-actions .button'));
+    await until(()=>fixture.checks.copied.length===1,'copy model link');
+    assert.ok(fixture.checks.copied[0].endsWith('/agents/fixture-model'));
+    click(card.querySelector('.mk-model-offer'));
+    await until(()=>doc.querySelector('.mk-offer-form'),'offer from the profile card');
+    set(doc.querySelector('.mk-offer-form input[type="number"]'),'3.75');
+    await until(()=>doc.querySelector('.mk-offer-form .button.primary')?.disabled===false,'valid offer amount');
+    doc.querySelector('.mk-offer-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
+    await until(()=>fixture.checks.offers===1&&!doc.querySelector('.mk-offer-form'),'offer submitted without changing page');
+    const buy=card.querySelector('.mk-feed-buy-button');assert.equal(buy.disabled,true);
+    click(card.querySelector('.mk-feed-buy-license input'));
+    await until(()=>!buy.disabled,'licence before profile checkout');
+    click(buy);
+    await until(()=>fixture.checks.checkouts===1&&card.querySelector('.notice[role="alert"]'),'direct checkout from the profile');
+    assert.equal(w.location.pathname,'/creators/mgm-labs');
     console.log(`PASS visitor profile has no editing controls or private models (${locale})`);
     return;
   }
   assert.ok(doc.querySelector('.account-button').href.includes('/profile'));
   assert.ok(doc.querySelector('.sidebar a[href*="/profile"]'));
   await until(() => fixture.checks.studioReads > 0, 'owner model data');
+  const composer=doc.querySelector('.mk-composer');
+  assert.ok(composer.querySelector('.button.primary').disabled,'A product is required even for text/photo posts');
+  set(composer.querySelector('textarea'),'This text alone must not be published.');
+  composer.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
+  await until(()=>composer.querySelector('.notice[role="alert"]'),'unlinked publication blocked');
+  assert.equal(fixture.checks.posts,0);
   click(doc.querySelector('#profile-tab-products'));
   await until(() => doc.querySelector('.mk-owned-models')?.textContent.includes('Private draft fixture'), 'private model management');
   click([...doc.querySelectorAll('.mk-owned-model-actions .button.primary')][0]);
@@ -139,7 +191,13 @@ export async function checkProfileClient({ w, mode, fixture, until, click, error
   await until(() => !doc.querySelector('.mk-composer button[type="submit"], .mk-composer .button.primary').disabled, 'post ready');
   doc.querySelector('.mk-composer').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
   await until(() => doc.querySelector('.mk-post-body')?.textContent.includes('Discover my new model'), 'published profile post');
-  assert.ok(doc.querySelector('.mk-post-product')?.textContent.includes('Published model fixture'));
+  assert.ok(doc.querySelector('.mk-profile-product-card .mk-feed-title')?.textContent.includes('Published model fixture'));
+  assert.ok(doc.querySelector('.mk-profile-product-card .mk-feed-description'));
+  assert.ok(doc.querySelector('.mk-profile-product-card .mk-feed-specs'));
+  assert.ok(doc.querySelector('.mk-profile-product-card .mk-feed-details'));
+  assert.ok(doc.querySelector('.mk-profile-product-card .mk-feed-buy-own'),'An owner sees their own creation');
+  assert.ok(doc.querySelector('.mk-profile-product-card .mk-model-save'));
+  assert.equal(doc.querySelector('.mk-composer .button.primary').disabled,true,'Publishing without selecting a model is disabled');
   assert.equal(fixture.checks.posts,1);
 
   click(doc.querySelector('.mk-avatar-camera'));

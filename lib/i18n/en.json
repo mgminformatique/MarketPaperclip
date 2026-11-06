@@ -1012,5 +1012,16 @@
   "Obtenir gratuitement": "Get for free",
   "Modèle fictif — aucun paiement.": "Fictional model — no payment.",
   "Retrouvez le modèle dans vos acquisitions.": "Find the model in your library.",
-  "Paiement sécurisé sur Stripe · CAD": "Secure payment on Stripe · CAD"
+  "Paiement sécurisé sur Stripe · CAD": "Secure payment on Stripe · CAD",
+  "Publier un produit": "Publish a product",
+  "Chaque publication présente un produit publié de votre catalogue.": "Every post presents a published product from your catalog.",
+  "Ajoutez une note sur ce produit (facultatif)…": "Add a note about this product (optional)…",
+  "Photos du produit": "Product photos",
+  "Produit présenté": "Featured product",
+  "Choisir un produit publié": "Choose a published product",
+  "Publiez d’abord un modèle dans votre catalogue": "Publish a model in your catalog first",
+  "Choisissez un produit publié de votre catalogue.": "Choose a published product from your catalog.",
+  "PRODUIT PUBLIÉ": "PUBLISHED PRODUCT",
+  "Aucun produit partagé pour le moment.": "No products shared yet.",
+  "Choisissez un produit publié ou créez un modèle avec le bouton Modèle, juste au-dessus.": "Choose a published product or create a model using the Model button above."
 }

@@ -85,7 +85,7 @@ export function OfferModal({
   onDone,
   notify,
 }: {
-  product: Product;
+  product: Pick<Product, "id" | "title" | "price_cents">;
   onClose: () => void;
   onDone: () => void;
   notify: (s: string) => void;

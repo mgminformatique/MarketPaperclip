@@ -15,6 +15,7 @@ const member = "11111111-1111-4111-8111-111111111111";
 const other = "22222222-2222-4222-8222-222222222222";
 const productId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const postId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const postProduct = { id:productId,seller_id:member,slug:"example-model",title:"Example model",tagline:"A complete public model.",description:"A complete public description for the model attached to this publication.",category:"Développement",kind:"agent",agent_count:1,engine:"Claude",version:"1.0.0",price_cents:100,currency:"cad",license:"MIT",tags:["profile"],requirements:"A compatible model runtime.",setup:"Read the documentation and configure the instructions.",status:"published",created_at:"2026-11-01T12:00:00Z",cover_url:null };
 const config: Config = {
   SUPABASE_URL: "https://test.supabase.co",
   SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test_not_real",
@@ -232,7 +233,7 @@ test("Posts need content, own photos and an own published listing", async () => 
     if (p === "/rest/v1/posts" && call.method === "POST") {
       inserted = JSON.parse(call.body);
       return Response.json(
-        { id: postId, ...inserted, created_at: "2026-11-03T17:00:00+00:00", product: null },
+        { id: postId, ...inserted, created_at: "2026-11-03T17:00:00+00:00", product: postProduct },
         { status: 201 },
       );
     }
@@ -240,17 +241,17 @@ test("Posts need content, own photos and an own published listing", async () => 
   const empty = await marketApi(request("posts", "POST", { body: "   " }), config);
   assert.equal(empty.status, 400);
   const foreignPhoto = await marketApi(
-    request("posts", "POST", { body: "Regardez", images: [file(other, "posts")] }),
+    request("posts", "POST", { product_id:productId, body: "Regardez", images: [file(other, "posts")] }),
     config,
   );
   assert.equal(foreignPhoto.status, 400);
   const outsidePhoto = await marketApi(
-    request("posts", "POST", { body: "Regardez", images: ["https://evil.test/x.jpg"] }),
+    request("posts", "POST", { product_id:productId, body: "Regardez", images: ["https://evil.test/x.jpg"] }),
     config,
   );
   assert.equal(outsidePhoto.status, 400);
   const tooMany = await marketApi(
-    request("posts", "POST", { images: [1, 2, 3, 4, 5].map(() => file(member, "posts")) }),
+    request("posts", "POST", { product_id:productId, images: [1, 2, 3, 4, 5].map(() => file(member, "posts")) }),
     config,
   );
   assert.equal(tooMany.status, 400);
@@ -360,7 +361,7 @@ test("Profiles list posts newest first and page on with a validated cursor", asy
     body: "Post " + i,
     images: [],
     created_at: `2026-11-03T17:${String(59 - i).padStart(2, "0")}:00+00:00`,
-    product: null,
+    product: postProduct,
   }));
   let postQuery: URLSearchParams | null = null;
   let failPosts = false;
@@ -384,6 +385,9 @@ test("Profiles list posts newest first and page on with a validated cursor", asy
   assert.equal(b.posts.length, 10);
   assert.equal(b.more_posts, true);
   assert.equal(postQuery!.get("author_id"), "eq." + member);
+  assert.equal(postQuery!.get("product.status"), "eq.published");
+  assert.equal(postQuery!.get("product.seller_id"), "eq."+member);
+  assert.ok(postQuery!.get("select")!.includes("products!inner"));
   assert.equal(postQuery!.get("order"), "created_at.desc");
   // Before the migration (or on a database error) the profile still renders.
   failPosts = true;
@@ -434,4 +438,36 @@ test("Product covers keep their checks after sharing the image reader", async ()
   assert.equal(ok.status, 200);
   assert.match(((await ok.json()) as any).url, /\/product-covers\/.+\.png$/);
   assert.equal(stored, 1);
+});
+
+
+test("Every new publication requires a product, even when text or photos are supplied", async () => {
+  const calls=network(()=>{ throw new Error("An unlinked publication must be rejected before a database write"); });
+  for(const body of [{body:"Text alone"},{body:"Text and photo",images:[file(member,"posts")]},{product_id:null,body:"No product"},{product_id:"not-a-product",images:[]}]) {
+    const response=await marketApi(request("posts","POST",body),config);
+    assert.equal(response.status,400);
+  }
+  assert.ok(!calls.some(call=>call.url.pathname==="/rest/v1/posts"));
+});
+
+test("Public profile cards exclude unlinked, private and foreign products and whitelist full listing fields", async () => {
+  const linked={id:postId,author_id:member,body:"This model",images:[],created_at:"2026-11-06T00:00:00Z",product:postProduct};
+  network(call=>{
+    if(call.url.pathname==="/rest/v1/profiles") return Response.json([{id:member,username:"studio-a",display_name:"Studio A"}]);
+    if(call.url.pathname==="/rest/v1/products") return Response.json([]);
+    if(call.url.pathname==="/rest/v1/rpc/market_creator_stats") return Response.json({});
+    if(call.url.pathname==="/rest/v1/rpc/market_activity") return Response.json([]);
+    if(call.url.pathname==="/rest/v1/posts") return Response.json([
+      {...linked,email:"private@example.test",product:{...postProduct,storage_path:"private.zip",product_files:[{storage_path:"private.zip"}]}},
+      {...linked,id:other,product:null},
+      {...linked,id:productId,product:{...postProduct,status:"draft"}},
+      {...linked,id:member,product:{...postProduct,seller_id:other}},
+    ]);
+  });
+  const response=await marketApi(request("creators/studio-a","GET",undefined,false),config);
+  const body=await response.json() as any;
+  assert.equal(body.posts.length,1);
+  assert.deepEqual(body.posts[0],linked);
+  for(const field of ["description","version","license","requirements","setup","tags","seller_id"]) assert.ok(field in body.posts[0].product);
+  assert.ok(!JSON.stringify(body.posts).includes("private.zip"));
 });

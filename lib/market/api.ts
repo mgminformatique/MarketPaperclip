@@ -11,6 +11,8 @@ import {
   platformFee,
   uuid,
   safeReturn,
+  type Post,
+  type PostProduct,
 } from "./model";
 import {
   admin,
@@ -34,8 +36,12 @@ import { emptyOverview, marketRange } from "./market";
 const publicFields =
   "id,seller_id,slug,title,tagline,description,category,kind,engine,version,price_cents,currency,license,tags,requirements,setup,agent_count,status,created_at,listed_at,cover_url,profiles!products_seller_id_fkey(display_name,username,bio,avatar_url)";
 // Posts on a public profile, with the presented listing when it is visible.
-const postFields =
-  "id,author_id,body,images,created_at,product:products(id,slug,title,tagline,kind,agent_count,engine,price_cents,currency,cover_url)";
+const postProductColumns = ["id","seller_id","slug","title","tagline","description","category","kind","agent_count","engine","version","price_cents","currency","license","tags","requirements","setup","status","created_at","cover_url"] as const;
+const postFields = "id,author_id,body,images,created_at,product:products!inner(" + postProductColumns.join(",") + ")";
+function publicPost(post: Post): Post {
+  return { id:post.id, author_id:post.author_id, body:post.body, images:post.images, created_at:post.created_at,
+    product:post.product ? Object.fromEntries(postProductColumns.map(key=>[key,post.product![key]])) as PostProduct : null };
+}
 const POSTS_PAGE = 10;
 const orderFields =
   "id,product_id,product_title,product_version,license,amount_cents,total_cents,tax_cents,fee_cents,currency,status,created_at,paid_at,offer_id";
@@ -205,11 +211,14 @@ async function creatorPosts(
     .from("posts")
     .select(postFields)
     .eq("author_id", author)
+    .eq("product.status", "published")
+    .eq("product.seller_id", author)
     .order("created_at", { ascending: false })
     .limit(POSTS_PAGE + 1);
   if (before) query = query.lt("created_at", before);
   const { data, error } = await query;
-  const rows = data || [];
+  const rows = ((data || []) as unknown as Post[])
+    .filter(post => post.product?.status === "published" && post.product.seller_id === author).map(publicPost);
   return {
     error,
     posts: rows.slice(0, POSTS_PAGE),
@@ -802,32 +811,18 @@ export async function marketApi(req: Request, c: Config) {
     if (route === "posts" && req.method === "POST") {
       const b = postInput.parse(await parseBody(req));
       const images = [...new Set(b.images)];
-      if (!b.body && !images.length && !b.product_id)
-        throw new HttpError(
-          400,
-          "Écrivez un message, ajoutez une photo ou un agent à présenter.",
-        );
       const media = db.storage.from("profile-media");
       if (images.some((url) => !mediaKey(media, url, u.id, "posts")))
         throw new HttpError(
           400,
           "Ajoutez les photos depuis le formulaire de publication.",
         );
-      if (b.product_id) {
-        const { data: listed, error } = await db
-          .from("products")
-          .select("id")
-          .eq("id", b.product_id)
-          .eq("seller_id", u.id)
-          .eq("status", "published")
-          .maybeSingle();
-        check(error);
-        if (!listed)
-          throw new HttpError(
-            400,
-            "Choisissez un de vos agents ou bundles publiés.",
-          );
-      }
+      const { data: listed, error: productError } = await db
+        .from("products").select("id")
+        .eq("id", b.product_id).eq("seller_id", u.id).eq("status", "published")
+        .maybeSingle();
+      check(productError);
+      if (!listed) throw new HttpError(400, "Choisissez un produit publié de votre catalogue.");
       await rateLimit(db, req, "post:" + u.id, 20, 3600);
       const { data: post, error } = await db
         .from("posts")
@@ -840,7 +835,7 @@ export async function marketApi(req: Request, c: Config) {
         .select(postFields)
         .single();
       check(error);
-      return ctx.json({ post }, 201);
+      return ctx.json({ post: publicPost(post as unknown as Post) }, 201);
     }
     if (path[0] === "posts" && path.length === 2 && req.method === "DELETE") {
       const id = uuid.parse(path[1]);

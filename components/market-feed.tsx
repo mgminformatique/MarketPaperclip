@@ -10,8 +10,7 @@ import {
   type MouseEvent,
 } from "react";
 import { useFeedMarquee } from "./use-feed-marquee";
-import { FeedBuyNow, type FeedBuyer } from "./feed-buy-now";
-import { money } from "../lib/market/model";
+import { MarketModelCard, type ModelCardControls } from "./market-model-card";
 import { useSearchParams } from "next/navigation";
 import {
   Activity,
@@ -20,31 +19,25 @@ import {
   ArrowUpRight,
   ChevronLeft,
   CircleDollarSign,
-  Clock3,
-  Layers3,
   Loader2,
   MousePointer2,
-  Package,
   Pause,
   Play,
   Plus,
-  Check,
-  Sparkles,
   Radio,
   RotateCcw,
   Tag,
 } from "lucide-react";
 import Link from "./navigation-link";
 import { useI18n } from "./i18n";
-import { api, Avatar, Modal, Notice, usePricesVisible } from "./market-ui";
+import { api, Modal, Notice } from "./market-ui";
 import {
   createFeedDemo,
   FEED_DEMO_ENABLED,
   FEED_DEMO_POLL_MS,
   type FeedDemo,
 } from "../lib/market/feed-demo";
-import { EventAmount, EventKind } from "./market-floor";
-import { timeAgo, type MarketEvent } from "../lib/market/market";
+import type { MarketEvent } from "../lib/market/market";
 import {
   FEED_ARRIVAL_MS,
   FEED_PAGE_SIZE,
@@ -254,7 +247,7 @@ function useFeedData(
   };
 }
 
-export function MarketFeed(buyer: FeedBuyer) {
+export function MarketFeed(buyer: ModelCardControls) {
   const query = useSearchParams();
   const demo = FEED_DEMO_ENABLED && query.get("demo") === "1";
   return (
@@ -262,9 +255,11 @@ export function MarketFeed(buyer: FeedBuyer) {
   );
 }
 
-function MarketFeedCarousel({ demo, ...buyer }: FeedBuyer & { demo: boolean }) {
+function MarketFeedCarousel({
+  demo,
+  ...buyer
+}: ModelCardControls & { demo: boolean }) {
   const { t, locale } = useI18n();
-  const prices = usePricesVisible();
   const demoSource = useMemo(() => (demo ? createFeedDemo() : null), [demo]);
   const [preview, setPreview] = useState<MarketEvent | null>(null);
   const [filter, setFilter] = useState<FeedFilter>("all");
@@ -600,242 +595,32 @@ function MarketFeedCarousel({ demo, ...buyer }: FeedBuyer & { demo: boolean }) {
                     undefined
                   }
                 >
-                  <div className="mk-feed-card">
-                    <div className="mk-feed-card-copy">
-                      <div className="mk-feed-event-heading">
-                        <EventKind event={event} />
-                        {demo && (
-                          <span className="mk-feed-demo-badge">
-                            {t("TEST")}
-                          </span>
-                        )}
-                        <time
-                          dateTime={event.created_at}
-                          title={new Date(event.created_at).toLocaleString(
-                            locale === "en" ? "en-CA" : "fr-CA",
-                          )}
-                        >
-                          <Clock3 size={12} />
-                          {timeAgo(event.created_at, locale)}
-                        </time>
-                      </div>
-                      <span className="mk-feed-engine">
-                        {event.product.engine} ·{" "}
-                        {t(
-                          event.product.kind === "bundle" ? "Bundle" : "Agent",
-                        )}
-                      </span>
-                      <Link
-                        className="mk-feed-title"
-                        tabIndex={
-                          index >= data.events.length ||
-                          data.events[selected]?.id !== event.id
-                            ? -1
-                            : undefined
-                        }
-                        href={
-                          demo
-                            ? "/feed?demo=1"
-                            : "/agents/" + event.product.slug
-                        }
-                        onClick={(click) => inspect(event, click)}
-                      >
-                        <h2>
-                          {demo ? t(event.product.title) : event.product.title}
-                        </h2>
-                        <ArrowUpRight size={23} />
-                      </Link>
-                      {event.product.tagline && (
-                        <p className="mk-feed-tagline">
-                          {t(event.product.tagline)}
-                        </p>
-                      )}
-                      {event.product.description && (
-                        <p className="mk-feed-description">
-                          {t(event.product.description)}
-                        </p>
-                      )}
-                      {!!event.product.tags?.length && (
-                        <ul className="mk-feed-features">
-                          {event.product.tags.map((tag) => (
-                            <li key={tag}>
-                              <Check size={13} />
-                              {t(tag)}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <dl className="mk-feed-specs">
-                        {event.product.agent_count && (
-                          <div>
-                            <dt>{t("COMPOSITION")}</dt>
-                            <dd>
-                              {event.product.agent_count}{" "}
-                              {t(
-                                event.product.agent_count === 1
-                                  ? "agent"
-                                  : "agents",
-                              )}
-                            </dd>
-                          </div>
-                        )}
-                        {event.product.version && (
-                          <div>
-                            <dt>{t("VERSION")}</dt>
-                            <dd>v{event.product.version}</dd>
-                          </div>
-                        )}
-                        {event.product.license && (
-                          <div>
-                            <dt>{t("LICENCE")}</dt>
-                            <dd>{t(event.product.license)}</dd>
-                          </div>
-                        )}
-                      </dl>
-                      {(event.product.requirements || event.product.setup) && (
-                        <details className="mk-feed-details">
-                          <summary
-                            tabIndex={
-                              index >= data.events.length ||
-                              data.events[selected]?.id !== event.id
-                                ? -1
-                                : undefined
-                            }
-                          >
-                            {t("Prérequis et installation")}
-                          </summary>
-                          {event.product.requirements && (
-                            <p>
-                              <strong>{t("Prérequis")}</strong>
-                              {t(event.product.requirements)}
-                            </p>
-                          )}
-                          {event.product.setup && (
-                            <p>
-                              <strong>{t("Installation")}</strong>
-                              {t(event.product.setup)}
-                            </p>
-                          )}
-                        </details>
-                      )}
-                      <Link
-                        className="mk-feed-seller"
-                        tabIndex={
-                          index >= data.events.length ||
-                          data.events[selected]?.id !== event.id
-                            ? -1
-                            : undefined
-                        }
-                        href={
-                          demo
-                            ? "/feed?demo=1"
-                            : "/creators/" + event.seller.username
-                        }
-                        onClick={(click) => inspect(event, click)}
-                      >
-                        <Avatar name={event.seller.display_name} />
-                        <span>
-                          {event.seller.display_name}
-                          <small>@{event.seller.username}</small>
-                        </span>
-                      </Link>
-                      <div className="mk-feed-card-bottom">
-                        {prices && event.amount_cents !== null ? (
-                          <div className="mk-feed-price">
-                            <small>
-                              {t(
-                                event.kind === "sold"
-                                  ? "MONTANT DE L’ACQUISITION"
-                                  : event.kind === "offer"
-                                    ? "MONTANT DE L’OFFRE"
-                                    : "PRIX DU MODÈLE",
-                              )}
-                            </small>
-                            <EventAmount event={event} />
-                            {event.product.price_cents != null &&
-                              event.product.price_cents !==
-                                event.amount_cents && (
-                                <p className="mk-feed-current-price">
-                                  {t("Prix actuel :")}{" "}
-                                  {money(event.product.price_cents, locale)}
-                                </p>
-                              )}
-                          </div>
-                        ) : (
-                          <span className="mk-feed-price-hidden">
-                            {t("Découvrez cette création")}
-                          </span>
-                        )}
-                        <FeedBuyNow
-                          product={event.product}
-                          demo={demo}
-                          inactive={
-                            index >= data.events.length ||
-                            data.events[selected]?.id !== event.id
-                          }
-                          duplicate={index >= data.events.length}
-                          {...buyer}
-                          onPause={() => {
-                            pause();
-                            goTo(
-                              data.events.findIndex(
-                                (item) => item.id === event.id,
-                              ),
-                            );
-                          }}
-                          onDemo={() => setPreview(event)}
-                        />
-                      </div>
-                    </div>
-                    <Link
-                      href={
-                        demo ? "/feed?demo=1" : "/agents/" + event.product.slug
-                      }
-                      onClick={(click) => inspect(event, click)}
-                      className="mk-feed-art"
-                      tabIndex={-1}
-                      aria-hidden="true"
-                    >
-                      {event.product.cover_url ? (
-                        <img
-                          src={event.product.cover_url}
-                          alt=""
-                          loading={index === 0 ? "eager" : "lazy"}
-                        />
-                      ) : (
-                        <>
-                          <div className="mk-feed-art-grid" />
-                          {event.product.kind === "bundle" ? (
-                            <Layers3 size={100} strokeWidth={1} />
-                          ) : (
-                            <Package size={100} strokeWidth={1} />
-                          )}
-                          <span>marketpaperclip</span>
-                        </>
-                      )}
-                      <div className="mk-feed-art-caption">
-                        <Sparkles size={15} />
-                        <span>
-                          {t(
-                            demo
-                              ? "CONCEPT ORIGINAL · DÉMO"
-                              : "DÉCOUVREZ LE MODÈLE",
-                          )}
-                        </span>
-                      </div>
-                      <div className="mk-feed-art-number">
-                        {String(
-                          data.events.findIndex(
-                            (item) => item.id === event.id,
-                          ) + 1,
-                        ).padStart(2, "0")}
-                        <span>
-                          {" "}
-                          / {String(data.events.length).padStart(2, "0")}
-                        </span>
-                      </div>
-                    </Link>
-                  </div>
+                  <MarketModelCard
+                    product={event.product}
+                    seller={event.seller}
+                    activity={event}
+                    demo={demo}
+                    inactive={
+                      index >= data.events.length ||
+                      data.events[selected]?.id !== event.id
+                    }
+                    duplicate={index >= data.events.length}
+                    {...buyer}
+                    eager={index === 0}
+                    position={{
+                      index:
+                        data.events.findIndex((item) => item.id === event.id) +
+                        1,
+                      count: data.events.length,
+                    }}
+                    onPause={() => {
+                      pause();
+                      goTo(
+                        data.events.findIndex((item) => item.id === event.id),
+                      );
+                    }}
+                    onDemo={() => setPreview(event)}
+                  />
                 </article>
               ))}
             </div>

@@ -132,6 +132,7 @@ Object.assign(w, {
   }),
 });
 if (profileQA) {
+  profileQA.install(w);
   w.createImageBitmap = async () => ({ width:2400, height:1600, close() {} });
   w.HTMLCanvasElement.prototype.getContext = () => ({ drawImage() {} });
   w.HTMLCanvasElement.prototype.toBlob = function (done, type) { done(new w.Blob([new Uint8Array([0x89,0x50,0x4e,0x47])],{type})); };

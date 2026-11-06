@@ -351,16 +351,23 @@ export function Modal({
 export function CopyButton({
   value,
   label = "Copier",
+  tabIndex,
+  disabled,
 }: {
   value: string;
   label?: string;
+  tabIndex?: number;
+  disabled?: boolean;
 }) {
   const { t, locale } = useI18n();
   const [done, setDone] = useState(false);
   const [error, setError] = useState(false);
   return (
     <button
+      type="button"
       className="button secondary small"
+      tabIndex={tabIndex}
+      disabled={disabled}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(value);
