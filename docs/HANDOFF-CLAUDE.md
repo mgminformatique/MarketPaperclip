@@ -1,5 +1,17 @@
 # MarketPaperclip — Handoff
 
+## Agent créé depuis le compte de test et partagé sur son profil — 5 novembre 2026
+
+À la demande du propriétaire, **Profil Pilot — Agent test** est créé et publié sous **Paperclip Test — MGM**, compte `3e76f7a7-04ad-4db3-9fd6-6d124fc1df7d`, sans droits administrateur. Profil public : **https://marketpaperclip.com/creators/paperclip-test?lang=fr**. Fiche : **https://marketpaperclip.com/agents/profil-pilot-agent-test-cc94c20d?lang=fr**. Produit **`cc94c20d-5d9d-4d28-865a-b68c9a6b6fb8`**, gratuit (**0 $ CA**), MIT, version 1.0.0, un agent Multi-modèles / Opérations. Publication du profil **`060b49b5-3d85-4ea4-a5cb-db5bda122da2`**, créée le **2026-11-06T03:20:57.162363+00:00**, contenant seulement la carte du modèle (texte vide, aucune image de publication ajoutée).
+
+Le modèle est visible dès l'onglet **Publications**, avec sa couverture et le prix Gratuit, et dans **Modèles**. Le profil de test contient maintenant deux modèles et une publication. Le profil du compte principal MGM n'a pas été modifié. La création, le transfert signé du ZIP, l'ajout de couverture, la soumission et le partage sont passés par les routes applicatives avec la connexion normale du compte de test. La revue a confirmé l'archive MIT bilingue et l'identité du modérateur autorisé avant l'approbation atomique `market_moderate_product`; l'audit `product.published` est présent. Aucun rôle de compte n'a été modifié.
+
+Source : `packages/profil-pilot-test/`. Archive : **`packages/releases/profil-pilot-test-1.0.0.zip`**, **4445 octets**, SHA-256 **`5fca962c288c698ca767c1a19e6ded842cbc7a7bd3132e179c39685ad98cc686`**. Les octets privés transférés ont été relus et sont identiques. Six fichiers : instructions, licence, documentation FR/EN, manifeste et exemples. L'agent prépare une fiche de modèle à partir de faits fournis; il ne possède ni service hébergé, script, connexion externe, paiement ou publication automatique. Exécution dans un environnement d'agent non testée. La couverture réutilise l'illustration existante `public/art/growth.webp`, transférée dans les médias du produit du compte test.
+
+Vérifications : archive relue, ZIP et manifeste valides, propriétaire/prix/version vérifiés, fichier privé et couverture comparés octet à octet, fiche et profil publics accessibles. Le HTML réel du profil ouvre Publications et contient la carte du nouveau modèle dans le fil, avec image et prix Gratuit; l'API publique contient aussi le modèle dans la liste et la publication. Le Feed réel reçoit une mise en ligne gratuite légitime, **aucune vente payée ni commande n'a été créée**. Aucun débit, achat gratuit simulé ou statistique de vente fabriquée. Pas de modification du code de l'application ni nouveau déploiement Netlify : les nouvelles données apparaissent immédiatement sur la version en ligne. Aucun navigateur visuel disponible pendant ce contrôle.
+
+Conserver cet exemple jusqu'à la demande de retrait. Pour le retirer ensuite : supprimer la publication avec le compte propriétaire, puis mettre l'annonce en pause via l'API normale; conserver l'historique et le package des éventuelles acquisitions. Ne pas supprimer le compte de test ou les autres modèles.
+
 ## Buy now directement depuis le Feed — 5 novembre 2026
 
 Publié sur **https://marketpaperclip.com/feed?lang=fr**. Source **`8181945`** sur `main`, déploiement Netlify **`6aed426d287f147f4a7d51c7`**, `ready`, publié le **6 novembre à 02 h 59 UTC** (5 novembre à 21 h 59 HE), aucune planification.

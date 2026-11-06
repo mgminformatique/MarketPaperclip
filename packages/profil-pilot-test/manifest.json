@@ -1,0 +1,18 @@
+{
+  "name": "profil-pilot-test",
+  "display_name": "Profil Pilot — Agent test",
+  "version": "1.0.0",
+  "author": "MGM Informatique",
+  "license": "MIT",
+  "entrypoint": "AGENTS.md",
+  "languages": [
+    "fr",
+    "en"
+  ],
+  "installation": "manual-instructions-bundle",
+  "permissions": [],
+  "runtime_included": false,
+  "model_usage_included": false,
+  "purpose": "Draft a model listing from supplied facts; MarketPaperclip test-profile example",
+  "format_note": "Distribution metadata, not an official runtime import schema."
+}

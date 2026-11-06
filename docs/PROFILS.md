@@ -36,3 +36,8 @@ printf '%s' '{"origin":"http://127.0.0.1:8893","locale":"fr","profileFixture":"o
 ```
 
 `profileFixture` accepte `owner`, `visitor` ou `anonymous`. Pour la fixture visiteur locale, le profil de démonstration `mgm-labs` sert de page initiale. Ces contrôles ne constituent pas une vérification visuelle desktop/mobile : l'accès au navigateur de l'opérateur était indisponible pendant la session.
+
+
+## Exemple réel sur le compte de test — 5 novembre 2026
+
+[Profil Pilot — Agent test](https://marketpaperclip.com/agents/profil-pilot-agent-test-cc94c20d?lang=fr) est un modèle gratuit MIT, avec un vrai bundle d'instructions FR/EN, créé via le compte Paperclip Test. Sa carte illustrée est partagée dans [le profil public du compte de test](https://marketpaperclip.com/creators/paperclip-test?lang=fr), dans Publications et Modèles. Aucun achat ni paiement n'a été exécuté. Le package et ses limites sont dans `packages/profil-pilot-test/`; l'environnement de modèle n'est pas inclus et son exécution n'a pas été validée ici. Cet exemple est une donnée de démonstration explicitement demandée, sans changement du fonctionnement des profils des autres utilisateurs.
