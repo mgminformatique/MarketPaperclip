@@ -1,5 +1,15 @@
 # MarketPaperclip — Handoff
 
+## Publication de test sur le véritable profil MGM Informatique — 5 novembre 2026
+
+Le propriétaire a précisé que l'exemple devait apparaître sur **son profil MGM Informatique**, et non celui du compte Paperclip Test. Une publication temporaire illustrée est maintenant visible sur **https://marketpaperclip.com/creators/dev-d3dda9077cc7470c8b707dd7?lang=fr**, ainsi que dans **Mon profil** (`/profile`) lorsqu'il est connecté à son compte principal.
+
+Auteur **`d3dda907-7cc7-470c-8b70-7dd7dd564aba`**, identifiant public **`dev-d3dda9077cc7470c8b707dd7`**, publication **`5c855f0b-8daf-45d4-9fdb-84135045ee66`**, créée le **2026-11-06T03:30:23.147839+00:00**. Texte : « Test de publication 👀 », puis un court exemple annonçant explicitement qu'il sert à voir l'affichage du profil et pourra être retiré. Une image reprend le visuel existant `public/art/nexus-prime-demo.webp`, copié dans `profile-media` sous le chemin de médias de cet auteur. Aucun modèle n'est joint; le profil conserve zéro modèle et compte maintenant une publication. Cette action concerne uniquement l'exemple de publication demandé, sans transfert de modèle entre comptes.
+
+Écriture opérateur via le service authentifié Supabase, sur instruction explicite du propriétaire, après vérification de son UUID et du nom MGM Informatique. Texte, nombre d'images, signature WebP, taille et chemin de médias de l'auteur vérifiés; aucune session de navigateur ni mot de passe du propriétaire utilisé ou modifié. Action consignée dans `audit_log` sous `operator.profile.post_example`. L'API publique confirme le bon auteur, le texte et l'image; les octets publics correspondent au fichier source. Le HTML public rend bien ce post et son image dans l'onglet Publications actif. Aucune vérification visuelle de navigateur n'a été possible dans cette session.
+
+Les données sont déjà en ligne : actualiser `/profile?lang=fr` suffit. Aucun changement du code ni déploiement applicatif nécessaire. Pour retirer cet exemple sur demande : supprimer la publication avec le compte principal; la route applicative retire ses médias. Les identifiants ci-dessus permettent de cibler cet exemple précisément.
+
 ## Agent créé depuis le compte de test et partagé sur son profil — 5 novembre 2026
 
 À la demande du propriétaire, **Profil Pilot — Agent test** est créé et publié sous **Paperclip Test — MGM**, compte `3e76f7a7-04ad-4db3-9fd6-6d124fc1df7d`, sans droits administrateur. Profil public : **https://marketpaperclip.com/creators/paperclip-test?lang=fr**. Fiche : **https://marketpaperclip.com/agents/profil-pilot-agent-test-cc94c20d?lang=fr**. Produit **`cc94c20d-5d9d-4d28-865a-b68c9a6b6fb8`**, gratuit (**0 $ CA**), MIT, version 1.0.0, un agent Multi-modèles / Opérations. Publication du profil **`060b49b5-3d85-4ea4-a5cb-db5bda122da2`**, créée le **2026-11-06T03:20:57.162363+00:00**, contenant seulement la carte du modèle (texte vide, aucune image de publication ajoutée).
