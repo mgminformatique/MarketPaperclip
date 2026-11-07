@@ -1,5 +1,15 @@
 # MarketPaperclip — Handoff
 
+## Membres et Feed sur mobile — 6 novembre 2026
+
+Publié sur **https://marketpaperclip.com**, déploiement Netlify **`6aee84398eb8bc254f06d8ee`**, `ready`, le **7 novembre à 01 h 52 UTC** (6 novembre à 20 h 52 HE). Source **`eca597e`** sur `main`, CI **42326272107** réussie. Hébergement et audience existants conservés.
+
+Membres : suppression de la largeur minimale contradictoire de la recherche du haut, actions compactes, menu latéral défilant, grille à une colonne sur téléphone, noms/pseudos longs sécables et recherche sur deux lignes. Les champs de recherche mobiles utilisent une taille de 16 px. Le bouton Publier conserve un nom accessible lorsque son texte est masqué.
+
+Feed : un toucher ne désactive plus la lecture ; les événements de focus et de survol issus du tactile ne la bloquent plus. Un balayage horizontal change de carte en conservant la lecture ou la pause explicite choisie. Les gestes verticaux et annulés ne modifient pas la lecture. Sur les cartes du Feed à 760 px ou moins, titre, créateur, visuel et informations sont passifs ; seules l'acceptation et l'action Buy now restent interactives, avec les liens de licence/conditions consultables. Les vues profil et ordinateur conservent leurs actions. Pause, navigation clavier et mouvement réduit restent disponibles.
+
+**Vérifications :** TypeScript, **146 tests** et build Netlify passent ; **11 parcours du client compilé local**, puis **6 parcours sur le client publié**, dont mobile Feed et Membres FR/EN, achat isolé et navigation ordinateur. Le nouveau parcours mobile échouait sur le précédent build à cause de l'animation arrêtée au toucher, et passe après correction. Les écritures des fixtures sont interceptées en mémoire, sans message ni achat réel. CSS publié identique octet à octet au build contrôlé ; pages Feed/Membres FR/EN et recherche publique accessibles. **Le rendu visuel sur téléphone reste non vérifié : l'outil navigateur est indisponible.** Aucune migration ni modification des paiements.
+
 ## @pseudos, notifications et messagerie privée — 6 novembre 2026
 
 Publié sur **https://marketpaperclip.com**, déploiement Netlify **`6aee81136d6bdc78031a1570`**, état `ready`, publié le **7 novembre à 01 h 40 UTC** (6 novembre à 20 h 40 HE). Code applicatif **`01867e6`**. Aucun changement d'audience de l'ancienne instance Sites de présentation; le site utilisé reste Netlify.
