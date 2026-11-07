@@ -267,6 +267,7 @@ function MarketFeedCarousel({
   const [hover, setHover] = useState(false);
   const [focused, setFocused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [mobile, setMobile] = useState(false);
   const [unread, setUnread] = useState(0);
   const wanted = useRef<number | null>(null);
   const following = useRef(true);
@@ -286,14 +287,35 @@ function MarketFeedCarousel({
   const marquee = useFeedMarquee(data.events, moving, reducedMotion);
   const { slides, selected, goTo } = marquee;
   const viewport = useRef<HTMLDivElement>(null);
-  const pointerStart = useRef<number | null>(null);
+  const pointerType = useRef("");
+  const pointerStart = useRef<{
+    x: number;
+    y: number;
+    id: number;
+    type: string;
+  } | null>(null);
   const suppressClick = useRef(false);
+  useEffect(() => {
+    const keyboard = () => {
+      pointerType.current = "";
+      if (viewport.current?.contains(document.activeElement)) setFocused(true);
+    };
+    document.addEventListener("keydown", keyboard, true);
+    return () => document.removeEventListener("keydown", keyboard, true);
+  }, []);
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
     const apply = () => {
       setReducedMotion(query.matches);
       if (query.matches) setPlaying(false);
     };
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, []);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 760px)");
+    const apply = () => setMobile(query.matches);
     apply();
     query.addEventListener("change", apply);
     return () => query.removeEventListener("change", apply);
@@ -307,8 +329,8 @@ function MarketFeedCarousel({
     }
   }, [data.events, goTo]);
   const move = useCallback(
-    (direction: "previous" | "next") => {
-      pause();
+    (direction: "previous" | "next", pausePlayback = true) => {
+      if (pausePlayback) pause();
       goTo(selected + (direction === "next" ? 1 : -1));
     },
     [pause, goTo, selected],
@@ -504,22 +526,51 @@ function MarketFeedCarousel({
             ref={viewport}
             className="mk-feed-viewport"
             data-motion={moving ? "running" : "paused"}
+            onPointerDownCapture={(event) => {
+              pointerType.current = event.pointerType;
+              if (event.pointerType === "touch") {
+                setHover(false);
+                setFocused(false);
+              }
+            }}
             onPointerDown={(event) => {
-              pointerStart.current = event.clientX;
               suppressClick.current = false;
-              if (event.pointerType === "touch") pause();
+              pointerStart.current = null;
+              if (
+                event.isPrimary === false || event.button > 0 ||
+                (event.target as HTMLElement).closest("button,input,textarea,select,label,a")
+              ) return;
+              pointerStart.current = {
+                x: event.clientX,
+                y: event.clientY || 0,
+                id: event.pointerId,
+                type: event.pointerType,
+              };
+            }}
+            onPointerMove={(event) => {
+              const start = pointerStart.current;
+              if (!start || start.id !== event.pointerId) return;
+              const dx = event.clientX - start.x;
+              const dy = (event.clientY || 0) - start.y;
+              if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                event.preventDefault();
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+              }
             }}
             onPointerUp={(event) => {
-              if (pointerStart.current === null) return;
-              const delta = event.clientX - pointerStart.current;
+              const start = pointerStart.current;
+              if (!start || start.id !== event.pointerId) return;
+              const delta = event.clientX - start.x;
+              const dy = (event.clientY || 0) - start.y;
               pointerStart.current = null;
-              if (Math.abs(delta) > 45) {
+              if (Math.abs(delta) > 45 && Math.abs(delta) > Math.abs(dy) * 1.2) {
                 suppressClick.current = true;
-                move(delta < 0 ? "next" : "previous");
+                move(delta < 0 ? "next" : "previous", start.type !== "touch");
               }
             }}
             onPointerCancel={() => {
               pointerStart.current = null;
+              suppressClick.current = false;
             }}
             onDragStart={(event) => event.preventDefault()}
             onClickCapture={(event) => {
@@ -533,9 +584,19 @@ function MarketFeedCarousel({
             aria-roledescription="carousel"
             aria-label={t("Carrousel du marché")}
             tabIndex={0}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            onFocusCapture={() => setFocused(true)}
+            onPointerEnter={(event) => {
+              if (event.pointerType === "mouse") setHover(true);
+            }}
+            onPointerLeave={(event) => {
+              if (event.pointerType === "mouse") setHover(false);
+            }}
+            onFocusCapture={() => {
+              if (pointerType.current !== "touch") setFocused(true);
+            }}
+            onKeyDownCapture={() => {
+              pointerType.current = "";
+              setFocused(true);
+            }}
             onBlurCapture={(event) => {
               if (
                 !event.currentTarget.contains(
@@ -600,6 +661,7 @@ function MarketFeedCarousel({
                     seller={event.seller}
                     activity={event}
                     demo={demo}
+                    purchaseOnly={mobile}
                     inactive={
                       index >= data.events.length ||
                       data.events[selected]?.id !== event.id
@@ -614,6 +676,7 @@ function MarketFeedCarousel({
                       count: data.events.length,
                     }}
                     onPause={() => {
+                      if (mobile) return;
                       pause();
                       goTo(
                         data.events.findIndex((item) => item.id === event.id),
@@ -677,7 +740,9 @@ function MarketFeedCarousel({
           <MousePointer2 size={14} />
           <span>
             {t(
-              "Survolez pour lire. Glissez, utilisez les flèches ou Maj + molette pour revenir en arrière.",
+              mobile
+                ? "Balayez à gauche ou à droite. Le Feed continue de défiler ; utilisez Pause pour vous arrêter."
+                : "Survolez pour lire. Glissez, utilisez les flèches ou Maj + molette pour revenir en arrière.",
             )}
           </span>
         </div>

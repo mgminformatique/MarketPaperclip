@@ -479,7 +479,7 @@ export default function Marketplace({
                 </button>
               ),
             )}
-            <Link className="button primary small" href={session.user ? "/profile?create=model" : "/studio/new"}>
+            <Link className="button primary small" aria-label={t("Publier un modèle")} href={session.user ? "/profile?create=model" : "/studio/new"}>
               <Plus size={16} />
               <span>{t("Publier un modèle")}</span>
             </Link>

@@ -194,6 +194,12 @@ small {
   background: var(--sidebar);
   border-right: 1px solid var(--line);
   z-index: 40;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+}
+.sidebar > * {
+  flex-shrink: 0;
 }
 .brand {
   display: flex;
@@ -410,6 +416,7 @@ small {
   gap: 11px;
   max-width: 425px;
   flex: 1;
+  min-width: 0;
   color: #69767a;
 }
 .global-search input {

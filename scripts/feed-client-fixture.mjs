@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const event = id => ({ id, kind:'listed', amount_cents:100 * id, previous_cents:null, created_at:`2026-11-05T12:00:${String(id).padStart(2,'0')}Z`, product:{id:'aaaaaaaa-aaaa-4aaa-8aaa-'+String(id).padStart(12,'0'),seller_id:'22222222-2222-4222-8222-222222222222',price_cents:100*id,slug:'feed-model-'+id,title:'Feed model '+id,kind:'agent',engine:'Claude',cover_url:null,tagline:'A complete fixture model',description:'Public description for this full-page model.',version:'1.0.0',license:'MIT',agent_count:1,tags:['Research'],requirements:'Personal API key.',setup:'Configure your key and open the agent.'},seller:{username:'fixture-creator',display_name:'Fixture Creator'} });
 export function createFeedFixture(mode) {
-  assert.ok(['full','reduced','hidden-prices','two','single','demo','buy','buy-owner','buy-anonymous','buy-free'].includes(mode));
+  assert.ok(['full','reduced','hidden-prices','two','single','demo','buy','buy-owner','buy-anonymous','buy-free','mobile'].includes(mode));
   const records = mode === 'single' ? [event(6)] : mode === 'two' ? [event(5),event(6)] : [event(4),event(5),event(6)];
   const requests = [], purchases = [];
   let rejectPayment = true, holdPayment = false, releasePayment;
@@ -59,7 +59,7 @@ export function createFeedFixture(mode) {
         return setTimeout(callback,delay,...args);
       };
       w.clearTimeout = id => { if (!timeouts.delete(id)) clearTimeout(id); };
-      w.matchMedia = media => ({matches:mode === 'reduced' && media.includes('prefers-reduced-motion'),media,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){}});
+      w.matchMedia = media => ({matches:(mode === 'reduced' && media.includes('prefers-reduced-motion')) || (mode === 'mobile' && media.includes('max-width: 760px')),media,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){}});
       w.ResizeObserver = class { observe(){} unobserve(){} disconnect(){} };
       w.IntersectionObserver = class { observe(){} unobserve(){} disconnect(){} takeRecords(){return [];} };
       // Motion is viewport-relative; no layout geometry or browser engine is
@@ -69,7 +69,7 @@ export function createFeedFixture(mode) {
       if (!url.pathname.startsWith('/api/')) return;
       const path=url.pathname.slice(5);
       if(path==='checkout') {
-        assert.ok(['buy','buy-free'].includes(mode),'Only the isolated purchase fixture can submit checkout');
+        assert.ok(['buy','buy-free','mobile'].includes(mode),'Only the isolated purchase fixture can submit checkout');
         assert.equal(options.method,'POST');
         const body=JSON.parse(options.body); purchases.push(body);
         assert.deepEqual(Object.keys(body).sort(),['license_accepted','product_id']);
@@ -80,7 +80,7 @@ export function createFeedFixture(mode) {
         return holdPayment ? new Promise(resolve=>{releasePayment=()=>resolve(response());}) : response();
       }
       assert.equal(options.method || 'GET','GET','No fixture write can reach the actual server');
-      if(path==='me')return Response.json({user: ['buy','buy-free','buy-owner'].includes(mode) ? {id:mode==='buy-owner'?'22222222-2222-4222-8222-222222222222':'11111111-1111-4111-8111-111111111111',email:'buyer@example.test'} : null});
+      if(path==='me')return Response.json({user: ['buy','buy-free','buy-owner','mobile'].includes(mode) ? {id:mode==='buy-owner'?'22222222-2222-4222-8222-222222222222':'11111111-1111-4111-8111-111111111111',email:'buyer@example.test'} : null});
       if(path==='favorites')return Response.json({ids:[]});
       if(path==='config')return Response.json({accounts:true,payments:true,launched:true,demo:false,github:false,google:false,prices:mode!=='hidden-prices',feeBps:1500});
       if(path==='market/feed') {
@@ -106,6 +106,49 @@ export async function checkFeedClient({w,fixture,until,click,errors,locale}) {
   const position=()=>doc.querySelector('.mk-feed-position strong')?.textContent;
   const ids=()=>new Set([...doc.querySelectorAll('.mk-feed-slide')].map(node=>node.dataset.eventId));
   const button=label=>doc.querySelector(`[aria-label="${label}"]`);
+  if(fixture.mode==='mobile') {
+    await until(()=>ids().size===3&&position()==='03','mobile Feed ready');
+    const viewport=doc.querySelector('.mk-feed-viewport'),track=doc.querySelector('.mk-feed-track');
+    const card=()=>doc.querySelector('.mk-feed-slide.is-selected');
+    const pointer=(type,x,y=40,target=viewport)=>{
+      const event=new w.Event(type,{bubbles:true,cancelable:true});
+      Object.defineProperties(event,{clientX:{value:x},clientY:{value:y},pointerType:{value:'touch'},pointerId:{value:1},isPrimary:{value:true},button:{value:0}});
+      target.dispatchEvent(event);
+    };
+    pointer('pointerdown',150);pointer('pointerup',150);
+    viewport.dispatchEvent(new w.FocusEvent('focusin',{bubbles:true}));
+    await until(()=>doc.querySelector('.mk-feed-play').getAttribute('aria-pressed')==='true'&&viewport.dataset.motion==='running','touch and its focus must not stop autoplay');
+    const before=track.style.transform;assert.ok(fixture.motion(1000));assert.notEqual(track.style.transform,before);
+    assert.equal(card().querySelector('.mk-model-actions'),null,'Mobile cards expose purchase controls only');
+    assert.equal(card().querySelector('a.mk-feed-title,a.mk-feed-art,a.mk-feed-seller'),null,'Tapping the card cannot navigate away');
+    assert.equal(card().querySelector('summary'),null,'Product information is passive on mobile Feed');
+    assert.ok(card().querySelector('.mk-feed-description').textContent.includes('Public description'));
+    const original=position();
+    pointer('pointerdown',150,40);pointer('pointerup',160,200);
+    assert.equal(position(),original,'A vertical page gesture is not a horizontal card swipe');
+    pointer('pointerdown',150);pointer('pointercancel',150);
+    assert.equal(viewport.dataset.motion,'running','Cancelled gestures do not leave playback stuck');
+    pointer('pointerdown',280);pointer('pointermove',70,43);pointer('pointerup',60,43);
+    await until(()=>position()!==original&&viewport.dataset.motion==='running','left swipe changes card and keeps playback');
+    pointer('pointerdown',60);pointer('pointerup',280);
+    await until(()=>position()===original&&viewport.dataset.motion==='running','right swipe changes card and keeps playback');
+    const consent=card().querySelector('.mk-feed-buy-license input');
+    await until(()=>card().querySelector('.mk-feed-buy-button').disabled,'mobile licence required');
+    pointer('pointerdown',100,40,consent);pointer('pointerup',100,40,consent);click(consent);
+    await until(()=>!card().querySelector('.mk-feed-buy-button').disabled,'mobile licence accepted');
+    assert.equal(viewport.dataset.motion,'running','Accepting the licence keeps the Feed moving');
+    assert.equal(card().querySelectorAll('.mk-feed-buy-license a').length,2,'Licence and terms remain reviewable');
+    click(card().querySelector('.mk-feed-buy-button'));
+    await until(()=>fixture.purchases.length===1&&card().querySelector('.notice'),'mobile purchase request and honest error');
+    assert.equal(viewport.dataset.motion,'running','Buy now does not disable autoplay');
+    click(doc.querySelector('.mk-feed-play'));
+    await until(()=>viewport.dataset.motion==='paused','explicit pause still works');
+    pointer('pointerdown',280);pointer('pointerup',60);
+    assert.equal(viewport.dataset.motion,'paused','A swipe preserves the user’s explicit pause');
+    assert.equal(fixture.motion(1000),false);
+    assert.deepEqual(errors,[]);
+    console.log('PASS mobile Feed: touch, focus, cancel, both swipe directions, passive cards, consent, UUID-bound purchase and explicit pause ('+locale+'; isolated fixtures)');return;
+  }
   if(['buy','buy-owner','buy-anonymous','buy-free'].includes(fixture.mode)) {
     await until(()=>ids().size===3&&position()==='03','purchase-ready Feed');
     const card=()=>doc.querySelector('.mk-feed-slide.is-selected');

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 import {
   ArrowUpRight,
   Bookmark,
@@ -26,6 +26,19 @@ export type ModelCardControls = FeedBuyer & {
   payments?: boolean;
 };
 const idle = () => {};
+function CardLink({ passive, children, ...link }: {
+  passive: boolean;
+  children: ReactNode;
+  href: string;
+  className: string;
+  tabIndex?: number;
+  "aria-hidden"?: boolean | "true" | "false";
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+}) {
+  if (passive)
+    return <div className={link.className} aria-hidden={link["aria-hidden"]}>{children}</div>;
+  return <Link {...link}>{children}</Link>;
+}
 const listingLabel = (kind: string) =>
   kind === "agent"
     ? "Agent"
@@ -44,6 +57,7 @@ export function MarketModelCard({
   demo = false,
   inactive = false,
   duplicate = false,
+  purchaseOnly = false,
   onPause = idle,
   onDemo = idle,
   position,
@@ -56,6 +70,7 @@ export function MarketModelCard({
   demo?: boolean;
   inactive?: boolean;
   duplicate?: boolean;
+  purchaseOnly?: boolean;
   onPause?: () => void;
   onDemo?: () => void;
   position?: { index: number; count: number };
@@ -85,6 +100,10 @@ export function MarketModelCard({
     (product.price_cents ?? 0) > 0 &&
     (demo || !!product.id);
   const saved = !!product.id && !!buyer.favorites?.includes(product.id);
+  const instructions = <>
+    {product.requirements && <p><strong>{t("Prérequis")}</strong>{demo ? t(product.requirements) : product.requirements}</p>}
+    {product.setup && <p><strong>{t("Installation")}</strong>{demo ? t(product.setup) : product.setup}</p>}
+  </>;
   return (
     <div className="mk-feed-card">
       <div className="mk-feed-card-copy">
@@ -113,7 +132,8 @@ export function MarketModelCard({
         <span className="mk-feed-engine">
           {product.engine} · {t(listingLabel(product.kind))}
         </span>
-        <Link
+        <CardLink
+          passive={purchaseOnly}
           className="mk-feed-title"
           tabIndex={tabIndex}
           href={href}
@@ -121,7 +141,7 @@ export function MarketModelCard({
         >
           <h2>{demo ? t(product.title) : product.title}</h2>
           <ArrowUpRight size={23} />
-        </Link>
+        </CardLink>
         {product.tagline && (
           <p className="mk-feed-tagline">
             {demo ? t(product.tagline) : product.tagline}
@@ -166,25 +186,16 @@ export function MarketModelCard({
           )}
         </dl>
         {(product.requirements || product.setup) && (
-          <details className="mk-feed-details">
-            <summary tabIndex={tabIndex}>
-              {t("Prérequis et installation")}
-            </summary>
-            {product.requirements && (
-              <p>
-                <strong>{t("Prérequis")}</strong>
-                {demo ? t(product.requirements) : product.requirements}
-              </p>
-            )}
-            {product.setup && (
-              <p>
-                <strong>{t("Installation")}</strong>
-                {demo ? t(product.setup) : product.setup}
-              </p>
-            )}
+          purchaseOnly ? <div className="mk-feed-details">
+            <strong>{t("Prérequis et installation")}</strong>
+            {instructions}
+          </div> : <details className="mk-feed-details">
+            <summary tabIndex={tabIndex}>{t("Prérequis et installation")}</summary>
+            {instructions}
           </details>
         )}
-        <Link
+        <CardLink
+          passive={purchaseOnly}
           className="mk-feed-seller"
           tabIndex={tabIndex}
           href={demo ? "/feed?demo=1" : "/creators/" + seller.username}
@@ -195,7 +206,7 @@ export function MarketModelCard({
             {seller.display_name}
             <small>@{seller.username}</small>
           </span>
-        </Link>
+        </CardLink>
         <div className="mk-feed-card-bottom">
           {prices && amount != null ? (
             <div className="mk-feed-price">
@@ -239,7 +250,7 @@ export function MarketModelCard({
             onDemo={onDemo}
           />
         </div>
-        <div className="mk-model-actions">
+        {!purchaseOnly && <div className="mk-model-actions">
           <Link href={href} tabIndex={tabIndex} onClick={inspect}>
             {t("Voir la fiche")} <ArrowUpRight size={13} />
           </Link>
@@ -291,10 +302,11 @@ export function MarketModelCard({
             }
             label="Copier le lien"
           />
-        </div>
+        </div>}
         {notice && <Notice>{t(notice)}</Notice>}
       </div>
-      <Link
+      <CardLink
+        passive={purchaseOnly}
         href={href}
         onClick={inspect}
         className="mk-feed-art"
@@ -330,7 +342,7 @@ export function MarketModelCard({
             <span> / {String(position.count).padStart(2, "0")}</span>
           </div>
         )}
-      </Link>
+      </CardLink>
       {offering && product.id && (
         <OfferModal
           product={{

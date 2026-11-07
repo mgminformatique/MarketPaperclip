@@ -4,6 +4,8 @@ Un marché entre utilisateurs inspiré des places de marché crypto (volume, pri
 
 ## Parcours
 
+**Feed mobile** — un toucher ne met plus le défilement en pause. Balayer vers la gauche ou la droite change de modèle et conserve l'état de lecture choisi. Sur les cartes du Feed en largeur mobile (760 px ou moins), seuls l'acceptation et Buy now sont interactifs, avec les liens de licence et de conditions consultables. Le titre, le visuel, le créateur et les informations deviennent passifs ; favoris, offre et copie restent disponibles sur les autres vues. Le bouton Pause reste explicite, le clavier suspend la lecture pour naviguer et le mouvement réduit reste respecté. Les gestes verticaux ne changent pas de modèle. Ce parcours est couvert par la fixture compilée `feedFixture: "mobile"` en FR/EN, sans paiement réel.
+
 **Vendeur** — crée son profil public (`/settings`), publie un agent ou un bundle depuis le studio (`/studio/new`) : couverture, package ZIP/JSON (jusqu'à 20 Mo, envoyé directement au stockage privé), documentation, **son prix**. Chaque publication passe par la modération. Ensuite, depuis *Mes annonces sur le marché* :
 - changer le prix d'une annonce en ligne **sans nouvelle validation** ;
 - mettre l'annonce en pause puis la remettre en vente (même version déjà validée) ;
