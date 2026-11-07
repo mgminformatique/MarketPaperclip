@@ -8,6 +8,7 @@ import { canonicalOrigin, ogImage } from "../lib/seo";
 import "@fontsource-variable/manrope";
 import "@fontsource-variable/dm-sans";
 import "./globals.css";
+import "./social.css";
 import "./market.css";
 async function currentLocale(): Promise<Locale> {
   return (await headers()).get("x-market-language") === "fr" ? "fr" : "en";

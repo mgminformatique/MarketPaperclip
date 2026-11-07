@@ -5,6 +5,8 @@ import Link from "./navigation-link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
+  MessageCircle,
+  Bell,
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
@@ -107,6 +109,7 @@ import {
   ProfilePhotos,
 } from "./profile";
 import { ProfileDetailsModal, ProfileModels, ProfileModelSaved } from "./profile-models";
+import { MemberSuggestions, PeoplePage, SocialBadges, MessagesPage, NotificationsPage } from "./social";
 import { MarketFeed } from "./market-feed";
 export type Session = {
   user: {
@@ -166,6 +169,7 @@ export default function Marketplace({
   const [favorites, setFavorites] = useState<string[]>([]);
   const [toast, setToast] = useState("");
   const [globalQuery, setGlobalQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [bootError, setBootError] = useState("");
   // Route changes remount this tree; a message sent just before navigating
   // (e.g. "submitted for review") is carried over for a few seconds.
@@ -358,6 +362,9 @@ export default function Marketplace({
             <UserRound size={18} />
             {t(" Mon profil")}
           </Link>
+          <Link className={"nav-item " + (pathname === "/messages" ? "active" : "")} href="/messages"><MessageCircle size={18}/>{t("Messages")}</Link>
+          <Link className={"nav-item " + (pathname === "/notifications" ? "active" : "")} href="/notifications"><Bell size={18}/>{t("Notifications")}</Link>
+          <Link className={"nav-item " + (pathname === "/people" ? "active" : "")} href="/people"><Users size={18}/>{t("Membres")}</Link>
           <Link
             className={"nav-item " + (pathname === "/library" ? "active" : "")}
             href="/library"
@@ -423,7 +430,8 @@ export default function Marketplace({
             className="global-search"
             onSubmit={(e) => {
               e.preventDefault();
-              router.push("/agents?q=" + encodeURIComponent(globalQuery));
+              router.push((globalQuery.trim().startsWith("@") ? "/people?q=" : "/agents?q=") + encodeURIComponent(globalQuery));
+              setSearchOpen(false);
               document.getElementById("global-search")?.blur();
             }}
           >
@@ -437,14 +445,19 @@ export default function Marketplace({
             </button>
             <input
               id="global-search"
-              aria-label={t("Rechercher des agents")}
-              placeholder={t("Un agent, une idée, une possibilité…")}
+              aria-label={t("Rechercher des agents ou des membres")}
+              placeholder={t("Un agent, un membre, @pseudo…")}
               value={globalQuery}
-              onChange={(e) => setGlobalQuery(e.target.value)}
+              onChange={(e) => { setGlobalQuery(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              onKeyDown={(e) => { if(e.key === "Escape") setSearchOpen(false); }}
+              onBlur={(e) => { if(!e.currentTarget.form?.contains(e.relatedTarget as Node)) setSearchOpen(false); }}
             />
             <kbd>{t("⌘ K")}</kbd>
+            {searchOpen && globalQuery && <MemberSuggestions query={globalQuery} onSelect={() => { setSearchOpen(false); setGlobalQuery(""); }} />}
           </form>
           <div className="topbar-actions">
+            <SocialBadges enabled={!!session.user} />
             <LanguageSwitcher />
             <Link href="/docs" className="top-docs">
               {t("Guide développeur ")}
@@ -498,6 +511,12 @@ export default function Marketplace({
               <MarketFeed userId={session.user?.id ?? null} onSignIn={signIn} favorites={favorites} onSave={save} payments={config.payments} />
             ) : pathname === "/market" ? (
               <MarketPage favorites={favorites} save={save} />
+            ) : pathname === "/people" ? (
+              <PeoplePage />
+            ) : pathname === "/messages" ? (
+              !sessionLoaded ? <Loading /> : <MessagesPage key={session.user?.id || "anonymous"} session={session} signIn={signIn} />
+            ) : pathname === "/notifications" ? (
+              !sessionLoaded ? <Loading /> : <NotificationsPage key={session.user?.id || "anonymous"} session={session} signIn={signIn} />
             ) : pathname === "/creators" ? (
               <Creators />
             ) : pathname.startsWith("/creators/") ? (
@@ -2113,7 +2132,7 @@ function CreatorProfile({
             <Link className="icon-button mk-profile-settings" href="/settings" aria-label={t("Paramètres du compte")}><Settings2 size={18} /></Link>
           </div>
         ) : (
-          t(website)
+          <div className="mk-profile-actions">{!data.demo && <Link className="button primary" href={"/messages?to=" + encodeURIComponent(data.profile.username)}><MessageCircle size={16}/>{t("Envoyer un message")}</Link>}{t(website)}</div>
         )}
       </div>
       <p className="profile-bio">

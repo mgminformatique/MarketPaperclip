@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { socialApi } from "./social-api";
 import type { MarketEvent } from "./market";
 import { FEED_PAGE_SIZE } from "./feed";
 import { localizedHref, requestLocale } from "../i18n/locale";
@@ -753,6 +754,22 @@ export async function marketApi(req: Request, c: Config) {
       }
       throw new HttpError(404, "Page introuvable.");
     }
+    // Private chat uploads use the same signature validation as profile media.
+    if (path[0] === "chat" && path.length === 3 && path[2] === "images" && req.method === "POST") {
+      const actor = await user(ctx.client), database = admin(c), cid = uuid.parse(path[1]);
+      const { data: conversation, error: ce } = await ctx.client!.from("conversations").select("id").eq("id", cid).maybeSingle();
+      check(ce);
+      if (!conversation) throw new HttpError(404, "Conversation introuvable.");
+      await rateLimit(database, req, "chat-image:" + actor.id, 30, 3600);
+      const image = await readImage(req);
+      const key = `${actor.id}/${cid}/${crypto.randomUUID()}.${image.ext}`;
+      const media = database.storage.from("chat-images");
+      const { error } = await media.upload(key, image.ext === "jpg" ? stripJpegMetadata(image.bytes) : image.bytes, { contentType: image.mime });
+      check(error, "Le transfert de l’image a échoué.");
+      return ctx.json({ image_path: key });
+    }
+    const social = await socialApi(req, c, ctx);
+    if (social) return social;
     const u = await user(ctx.client);
     const db = admin(c);
     await rateLimit(db, req, "user:" + u.id, 120, 60);

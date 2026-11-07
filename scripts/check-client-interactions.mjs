@@ -16,6 +16,8 @@ import { JSDOM, VirtualConsole } from "jsdom";
 import { createProfileFixture, checkProfileClient } from "./profile-client-fixture.mjs";
 import { createFeedFixture, checkFeedClient } from "./feed-client-fixture.mjs";
 
+import { createSocialFixture, checkSocialClient } from "./social-client-fixture.mjs";
+
 let input = "";
 for await (const chunk of process.stdin) input += chunk;
 const {
@@ -27,6 +29,7 @@ const {
   studioFixture = false,
   profileFixture = false,
   feedFixture = false,
+  socialFixture = false,
 } = JSON.parse(input);
 assert.ok(["fr", "en"].includes(initialLocale));
 let browserWindow;
@@ -34,15 +37,19 @@ const origin = new URL(suppliedOrigin).origin;
 assert.ok(new URL(origin).protocol === "https:" || (!bearer && new URL(origin).protocol === "http:" && new URL(origin).hostname === "127.0.0.1"), "HTTPS or an uncredentialed local QA server is required");
 const profileQA = profileFixture ? createProfileFixture(profileFixture) : null;
 const feedQA = feedFixture ? createFeedFixture(feedFixture) : null;
+const socialQA = socialFixture ? createSocialFixture(socialFixture) : null;
 const networkFetch = globalThis.fetch;
 let fixtureOnboardingCalls = 0;
 async function get(input, options = {}) {
   const url = new URL(typeof input === "string" ? input : input.url, origin);
   assert.equal(url.origin, origin, "QA requests must stay on the Site origin");
+  const socialResponse = socialQA?.fetch(url, options);
+  if (socialResponse) return socialResponse;
   const profileResponse = profileQA?.fetch(url, options);
   if (profileResponse) return profileResponse;
   const feedResponse = feedQA?.fetch(url, options);
   if (feedResponse) return feedResponse;
+  if ((profileQA || feedQA || studioFixture) && ["/api/chat", "/api/notifications"].includes(url.pathname)) return Response.json({unread:0,conversations:[],notifications:[]});
   if (studioFixture) {
     if (url.pathname === "/api/me") return Response.json({
       user: { id: "11111111-1111-4111-8111-111111111111", email: "qa@example.test" },
@@ -84,7 +91,7 @@ async function get(input, options = {}) {
   }
   return response;
 }
-const initialPath = feedQA ? feedQA.initialPath : profileQA ? profileQA.initialPath : studioFixture ? "/studio" : "/";
+const initialPath = socialQA ? socialQA.initialPath : feedQA ? feedQA.initialPath : profileQA ? profileQA.initialPath : studioFixture ? "/studio" : "/";
 const initialUrl = origin + initialPath + (initialPath.includes("?") ? "&" : "?") + "lang=" + initialLocale;
 const html = await (await get(initialUrl)).text();
 const errors = [];
@@ -106,7 +113,7 @@ assert.equal(
   initialLocale,
   "server-rendered language",
 );
-if (!profileQA && !feedQA) assert.match(
+if (!profileQA && !feedQA && !socialQA) assert.match(
   w.document.title,
   studioFixture ? /My workspace|Mon espace/ : initialLocale === "en"
     ? /The AI agent marketplace for developers/
@@ -139,6 +146,7 @@ if (profileQA) {
   w.HTMLElement.prototype.scrollIntoView = () => {};
 }
 if (feedQA) feedQA.install(w);
+if (socialQA) socialQA.install(w);
 w.addEventListener("error", (event) => errors.push(String(event.error)));
 w.localStorage.setItem("mp-favorites", "null"); // Reproduce the stored-state regression.
 const context = dom.getInternalVMContext();
@@ -198,13 +206,19 @@ try {
   await module.link(link);
   await module.evaluate();
   await until(
-    () => w.__NEXT_HYDRATED && w.document.querySelector(authOnly || studioFixture || profileQA || feedQA ? ".app-shell" : ".save-button"),
+    () => w.__NEXT_HYDRATED && w.document.querySelector(authOnly || studioFixture || profileQA || feedQA || socialQA ? ".app-shell" : ".save-button"),
     "hydration",
   );
   // Allow the effect that reads corrupt favorites to commit before testing clicks.
   await new Promise((resolve) => setTimeout(resolve, 150));
   assert.ok(w.document.querySelector(".app-shell"));
   console.log("PASS client startup with invalid stored favorites");
+
+  if (socialQA) {
+    await checkSocialClient({w,fixture:socialQA,mode:socialFixture,until,click,errors,locale:initialLocale});
+    dom.window.close();
+    process.exit(0);
+  }
 
   if (feedQA) {
     await checkFeedClient({w,fixture:feedQA,until,click,errors,locale:initialLocale});

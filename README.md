@@ -8,6 +8,8 @@ Le site est en production sur **https://marketpaperclip.com**, avec Supabase, la
 
 ### Fonctionnalités
 
+- **Communauté** : @pseudos recherchables pour tous les membres (`/people`), notifications de ventes/achats/offres (`/notifications`) et messagerie privée texte/photos avec réponses, réactions, lecture et blocage (`/messages`). Voir [les détails](docs/SOCIAL.md).
+
 - Catalogue avec recherche, catégories, modèles, tri, pagination, agents et bundles.
 - **Le marché** (`/market`) : volume, ventes, prix plancher, tendances, top créateurs, activité en direct, nouvelles annonces; bandeau en direct sur l’accueil. Voir [docs/MARKET.md](docs/MARKET.md).
 - **Feed** (`/feed`) : grande version interactive de la banderole d'Explore, arrivées de droite à gauche, lecture automatique, glissement, flèches, historique paginé et retour au direct. Les filtres distinguent mises en vente et ventes payées.
@@ -82,7 +84,7 @@ Le projet utilise React 19, TypeScript et Vinext/Vite. Le build Worker s’exéc
 
 ## Mise en service
 
-Le projet Supabase désigné est `ltommtumsvvqxdknpkfd`. Le déploiement des huit migrations et de la configuration Auth est préparé dans le workflow manuel **Deploy Supabase**, limité à `main`. Suivre [docs/SUPABASE-SETUP.md](docs/SUPABASE-SETUP.md) pour ajouter les accès sécurisés, exécuter le workflow et relier les variables serveur du site. Ce workflow ne déploie pas automatiquement le site ni ses secrets.
+Le projet Supabase désigné est `ltommtumsvvqxdknpkfd`. Le déploiement des dix migrations et de la configuration Auth est préparé dans le workflow manuel **Deploy Supabase**, limité à `main`. Suivre [docs/SUPABASE-SETUP.md](docs/SUPABASE-SETUP.md) pour ajouter les accès sécurisés, exécuter le workflow et relier les variables serveur du site. Ce workflow ne déploie pas automatiquement le site ni ses secrets.
 
 Lisez [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), puis [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md). Les scripts SQL à appliquer dans l’ordre sont dans `supabase/migrations/`.
 
@@ -94,7 +96,7 @@ La mise en ligne Netlify + GoDaddy + Stripe est décrite pas à pas dans [docs/N
 app/                     Pages et point d’entrée API (market.css : styles du marché)
 components/              Catalogue, studio, acquisitions, documentation, marché (market-floor, market-desk)
 lib/market/              Contrats, validation, Supabase, Stripe et orchestration API
-supabase/migrations/     Tables, RLS, permissions et procédures transactionnelles (001–008)
+supabase/migrations/     Tables, RLS, permissions et procédures transactionnelles (001–010)
 worker/                  Adaptateur Cloudflare et en-têtes de sécurité
 public/art/              Illustrations originales optimisées en WebP
 scripts/preflight.mjs    Contrôle des noms de variables requis, sans révéler les valeurs

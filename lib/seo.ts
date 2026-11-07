@@ -21,6 +21,7 @@ type StaticPage = { fr: Copy; en: Copy; index?: boolean };
 
 // Public pages with their own search copy. Titles stay under ~60 characters.
 export const staticPages: Record<string, StaticPage> = {
+  "/people": { fr: { title: "Membres | MarketPaperclip", description: "Retrouvez les membres de MarketPaperclip par leur nom ou leur @pseudo, consultez leurs profils et échangez en messagerie privée." }, en: { title: "Members | MarketPaperclip", description: "Find MarketPaperclip members by name or @handle, explore their public profiles and start a private conversation." }, index: false },
   "/feed": {
     fr: { title: "Feed — Ventes et annonces en direct | MarketPaperclip", description: "Parcourez les ventes et mises en vente d’agents IA dans un carrousel interactif. Nouvelles arrivées en direct, défilement automatique et historique du marché." },
     en: { title: "Market feed — Live sales and listings | MarketPaperclip", description: "Explore AI agent sales and listings in an interactive carousel. Follow new arrivals live, play the ticker and browse market history." },
@@ -148,7 +149,7 @@ export const staticPages: Record<string, StaticPage> = {
 };
 
 // Signed-in areas: useful to people, not to search results.
-const privatePrefixes = ["/profile", "/studio", "/library", "/settings", "/admin", "/favorites"];
+const privatePrefixes = ["/messages", "/notifications", "/profile", "/studio", "/library", "/settings", "/admin", "/favorites"];
 
 export type SeoRoute =
   | { kind: "static"; path: string }

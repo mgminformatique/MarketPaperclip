@@ -266,7 +266,7 @@ export function ProfileDetailsModal({
           />
         </label>
         <label>
-          {t("Nom de profil")}
+          {t("Pseudo unique (@)")}
           <input
             name="username"
             defaultValue={profile.username}
@@ -279,7 +279,7 @@ export function ProfileDetailsModal({
           />
           <small>
             {t(
-              "Lettres minuscules, chiffres, tirets. Votre adresse : /creators/votre-nom",
+              "De 3 à 30 lettres minuscules, chiffres, tirets ou _. Les membres vous retrouvent avec @votre-pseudo.",
             )}
           </small>
         </label>
