@@ -145,7 +145,8 @@ export async function checkProfileClient({ w, mode, fixture, until, click, error
     assert.equal(doc.querySelector('.mk-composer'),null);
     assert.equal(doc.querySelector('.mk-avatar-camera'),null);
     assert.equal(doc.querySelector('.mk-cover-edit'),null);
-    assert.equal(doc.querySelector('.mk-profile-actions'),null);
+    assert.ok(doc.querySelector('.mk-profile-actions a[href*="/messages?to=mgm-labs"]'), 'Visitors can contact the profile owner');
+    assert.equal(doc.querySelector('.mk-profile-actions button'),null, 'Visitors cannot edit the profile');
     assert.equal(fixture.checks.studioReads,0);
     assert.ok(!doc.body.textContent.includes('Private draft fixture'));
     assert.ok(!doc.body.textContent.includes('Legacy unlinked message'));

@@ -45,11 +45,11 @@ async function get(input, options = {}) {
   assert.equal(url.origin, origin, "QA requests must stay on the Site origin");
   const socialResponse = socialQA?.fetch(url, options);
   if (socialResponse) return socialResponse;
+  if ((profileQA || feedQA || studioFixture) && ["/api/chat", "/api/notifications"].includes(url.pathname)) return Response.json({unread:0,conversations:[],notifications:[]});
   const profileResponse = profileQA?.fetch(url, options);
   if (profileResponse) return profileResponse;
   const feedResponse = feedQA?.fetch(url, options);
   if (feedResponse) return feedResponse;
-  if ((profileQA || feedQA || studioFixture) && ["/api/chat", "/api/notifications"].includes(url.pathname)) return Response.json({unread:0,conversations:[],notifications:[]});
   if (studioFixture) {
     if (url.pathname === "/api/me") return Response.json({
       user: { id: "11111111-1111-4111-8111-111111111111", email: "qa@example.test" },
